@@ -21,12 +21,15 @@ for lib in required:
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import database
-import os  # <-- Добавляем импорт os
+import os
 
 app = Flask(__name__)
-# Теперь секретный ключ берется из переменных окружения. Если локально, подставится запасной.
-app.secret_key = os.environ.get('SECRET_KEY', 'default_fallback_key_for_local_dev') 
+app.secret_key = os.environ.get('SECRET_KEY', 'default_fallback_key_for_local_dev')
 db_lock = threading.Lock()
+
+# ★ ГЛАВНОЕ ИСПРАВЛЕНИЕ: Инициализируем БД ПРИ ЗАПУСКЕ ПРИЛОЖЕНИЯ ★
+database.init_db()
+
 @app.before_request
 def update_online_status():
     if 'user_id' in session:
@@ -130,7 +133,7 @@ RARITY_COLORS = {
     "epic": "#b03aff", "legendary": "#ff8c00", "mythic": "#ff0000"
 }
 
-# ===== РАСШИРЕННЫЙ ПУЛ ЦЕН (СДЕЛАН ПЛАВНЫМ) =====
+# ===== РАСШИРЕННЫЙ ПУЛ ЦЕН =====
 ALL_ITEMS = []
 WEAPON_TYPES = ["Пистолет", "Пистолет-пулемёт", "Дробовик", "Винтовка", "Штурмовая винтовка", "Снайперская", "Нож", "Перчатки"]
 
@@ -153,7 +156,6 @@ rarity_price_ranges = {
     "mythic": [p for p in prices if p >= 25000]
 }
 
-# ===== РАСШИРЕННЫЙ СПИСОК ИМЕН =====
 SUFFIX_NAMES = [
     "Стандарт", "Вспышка", "Тень", "Шторм", "Гром", "Пламя", "Лёд", "Космос", "Фантом", "Предел", 
     "Титан", "Искра", "Молния", "Зверь", "Призрак", "Буря", "Сталь", "Коготь", "Клык", 
@@ -533,14 +535,14 @@ def upgrade_item():
         database.add_item(user_id, f"{target_item['name']} (Апгрейд)", target_price, target_item['rarity'], target_item.get('image', ''))
         message = f"✅ Успех! Ты получил {target_item['name']}!"
         
-        # ★ ИСПРАВЛЕНИЕ СТАТИСТИКИ: Учитываем потерю скинов и выигрыш нового ★
+        # Учет статистики для апгрейда
         database.update_stats(user_id, spent_add=current_price, won_add=target_price, upgrade_add=1)
     else:
         for item in source_items:
             database.remove_item(user_id, item['id'])
         message = f"💥 Апгрейд провалился! Все выбранные скины сгорели."
         
-        # ★ ИСПРАВЛЕНИЕ СТАТИСТИКИ: Учитываем только потерю скинов ★
+        # Учет статистики для апгрейда
         database.update_stats(user_id, spent_add=current_price, won_add=0, upgrade_add=1)
     
     return jsonify({
@@ -660,7 +662,6 @@ def contract():
     if closest_item['price'] < total_value:
         message = f"😔 Ты получил {closest_item['name']} ({closest_item['price']} монет) (не окупилось)"
     
-    # ★ ИСПРАВЛЕНИЕ СТАТИСТИКИ: Учитываем потерю скинов и выигрыш нового ★
     database.update_stats(user_id, spent_add=total_value, won_add=closest_item['price'], contract_add=1)
     
     return jsonify({
@@ -698,5 +699,5 @@ def drop_feed_json():
     return jsonify({"success": True, "html": html})
 
 if __name__ == '__main__':
-    database.init_db()
+    # database.init_db() здесь больше НЕ НУЖНО вызывать, мы вызвали его глобально
     app.run(debug=True)
