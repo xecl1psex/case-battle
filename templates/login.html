@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход — CaseBattle</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            background: radial-gradient(circle at 10% 20%, #1a1a2e 0%, #0a0a0f 100%);
+            color: #eee; 
+            min-height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+        }
+        .login-box {
+            background: rgba(26, 26, 46, 0.85);
+            backdrop-filter: blur(12px);
+            padding: 40px;
+            border-radius: 16px;
+            border: 1px solid rgba(233, 69, 96, 0.4);
+            box-shadow: 0 0 50px rgba(233, 69, 96, 0.15);
+            width: 380px;
+            text-align: center;
+        }
+        .login-box h1 {
+            color: #e94560;
+            font-size: 28px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(233, 69, 96, 0.3);
+        }
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background: rgba(15, 52, 96, 0.6);
+            border: 1px solid rgba(15, 52, 96, 0.8);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+        }
+        .login-box input:focus {
+            outline: none;
+            border-color: #e94560;
+            box-shadow: 0 0 15px rgba(233, 69, 96, 0.2);
+        }
+        .login-box .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #e94560, #c73652);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+        }
+        .login-box .btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 25px rgba(233, 69, 96, 0.5);
+        }
+        .login-box .btn-reg {
+            background: #4e9a06;
+            box-shadow: 0 4px 15px rgba(78, 154, 6, 0.3);
+            margin-top: 10px;
+        }
+        .login-box .btn-reg:hover {
+            box-shadow: 0 6px 25px rgba(78, 154, 6, 0.5);
+        }
+        .error {
+            color: #e94560;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        #reg-fields {
+            display: none;
+            margin-top: 10px;
+        }
+        .back-link {
+            color: #8899aa;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 15px;
+            display: block;
+        }
+        .back-link:hover {
+            color: #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h1>🎰 CaseBattle</h1>
+        {% if error %}
+        <div class="error">❌ {{ error }}</div>
+        {% endif %}
+        
+        <!-- Форма входа -->
+        <form method="POST" action="/login" id="loginForm">
+            <input type="text" name="username" placeholder="Логин" required>
+            <input type="password" name="password" placeholder="Пароль" required>
+            <button type="submit" class="btn">Войти</button>
+        </form>
+        
+        <!-- Кнопка переключения на регистрацию -->
+        <button class="btn btn-reg" onclick="showRegister()">Зарегистрироваться</button>
+
+        <!-- Скрытая форма регистрации -->
+        <div id="reg-fields">
+            <hr style="border-color: rgba(255,255,255,0.1); margin: 15px 0;">
+            <input type="text" id="reg_username" placeholder="Логин (для входа)">
+            <input type="text" id="reg_display_name" placeholder="Отображаемый ник">
+            <input type="password" id="reg_password" placeholder="Пароль">
+            <button class="btn btn-reg" onclick="register()">Создать аккаунт</button>
+            <span class="back-link" onclick="hideRegister()">← Назад к входу</span>
+        </div>
+    </div>
+
+    <script>
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.querySelector('.btn-reg').style.display = 'none';
+            document.getElementById('reg-fields').style.display = 'block';
+        }
+
+        function hideRegister() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.querySelector('.btn-reg').style.display = 'block';
+            document.getElementById('reg-fields').style.display = 'none';
+        }
+
+        function register() {
+            const username = document.getElementById('reg_username').value;
+            const displayName = document.getElementById('reg_display_name').value;
+            const password = document.getElementById('reg_password').value;
+            
+            if (!username || !displayName || !password) {
+                alert('Заполните все поля!');
+                return;
+            }
+            
+            fetch('/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `username=${encodeURIComponent(username)}&display_name=${encodeURIComponent(displayName)}&password=${encodeURIComponent(password)}`
+            })
+            .then(res => res.text())
+            .then(html => {
+                window.location.reload();
+            });
+        }
+    </script>
+</body>
+</html>

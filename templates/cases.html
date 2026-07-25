@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 style="font-size: 24px; font-weight: 700;">🎁 Выбери кейс</h2>
+    <div style="display: flex; gap: 10px;">
+        <input type="text" placeholder="Поиск..." style="background: rgba(20,35,50,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 6px 12px; color: #fff; font-size: 14px; width: 150px;">
+    </div>
+</div>
+
+<div class="case-grid">
+    {% for case_key in cases %}
+    {% set case = cases[case_key] %}
+    <a href="/case/{{ case_key }}" class="case-card">
+        <div style="position: relative;">
+            <img src="{{ case.image }}" alt="{{ case.name }}">
+            <div style="position: absolute; top: 8px; right: 8px; background: rgba(233,69,96,0.2); color: #e94560; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(233,69,96,0.3);">NEW</div>
+        </div>
+        <h3>{{ case.name }}</h3>
+        <p class="price">{{ case.price }} монет</p>
+        <div style="margin-top: 6px; font-size: 12px; color: #8899aa;">
+            {% set ns = namespace(counter=0) %}
+            {% for item in case.drop_list %}
+                {% if ns.counter < 3 %}
+                    <span>{{ item.name }}</span>{% if not loop.last and ns.counter < 2 %}, {% endif %}
+                    {% set ns.counter = ns.counter + 1 %}
+                {% endif %}
+            {% endfor %}
+            {% if case.drop_list|length > 3 %} и другие...{% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 1200px; margin: 0 auto;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <h2 style="font-size: 24px; font-weight: 700;">🔄 Контракты</h2>
+        <div style="color: #8899aa; font-size: 13px;">
+            Обменяй скины и получи что-то лучше!
+        </div>
+    </div>
+
+    <!-- ВЫБОР СЛОЖНОСТИ -->
+    <div style="display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap;">
+        <div onclick="setDifficulty('easy')" id="diff-easy" style="flex: 1; min-width: 140px; cursor: pointer; padding: 15px; border-radius: 12px; background: rgba(20,35,50,0.4); border: 2px solid transparent; text-align: center; transition: 0.3s;">
+            <div style="font-weight: 700; color: #2a9a2a;">🟢 Лёгкий</div>
+            <div style="font-size: 12px; color: #8899aa;">Множитель: <strong>x1.2</strong></div>
+            <div style="font-size: 12px; color: #8899aa;">Окупаемость: 80%</div>
+        </div>
+        <div onclick="setDifficulty('medium')" id="diff-medium" style="flex: 1; min-width: 140px; cursor: pointer; padding: 15px; border-radius: 12px; background: rgba(20,35,50,0.4); border: 2px solid #f39c12; text-align: center; transition: 0.3s; box-shadow: 0 0 15px rgba(243,156,18,0.2);">
+            <div style="font-weight: 700; color: #f39c12;">🟠 Средний</div>
+            <div style="font-size: 12px; color: #8899aa;">Множитель: <strong>x1.5</strong></div>
+            <div style="font-size: 12px; color: #8899aa;">Окупаемость: 50%</div>
+        </div>
+        <div onclick="setDifficulty('hard')" id="diff-hard" style="flex: 1; min-width: 140px; cursor: pointer; padding: 15px; border-radius: 12px; background: rgba(20,35,50,0.4); border: 2px solid transparent; text-align: center; transition: 0.3s;">
+            <div style="font-weight: 700; color: #e94560;">🔴 Сложный</div>
+            <div style="font-size: 12px; color: #8899aa;">Множитель: <strong>x5.0</strong></div>
+            <div style="font-size: 12px; color: #8899aa;">Окупаемость: 20%</div>
+        </div>
+    </div>
+
+    <!-- ДВЕ КОЛОНКИ -->
+    <div style="display: flex; gap: 25px; flex-wrap: wrap;">
+        
+        <!-- ЛЕВАЯ КОЛОНКА: ИНВЕНТАРЬ (ОТРИСОВЫВАЕТСЯ ЧЕРЕЗ JS) -->
+        <div style="flex: 1.2; min-width: 320px; max-width: 600px; background: rgba(20,35,50,0.4); border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.04);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                <h3 style="font-size: 16px; font-weight: 600;">🎒 Твой инвентарь</h3>
+                <div>
+                    <select id="sort-contract" onchange="applySortContract()" style="background: rgba(12,18,28,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; padding: 4px 8px; font-size: 12px;">
+                        <option value="default">По умолч.</option>
+                        <option value="price-asc">Цена (↑)</option>
+                        <option value="price-desc">Цена (↓)</option>
+                        <option value="rarity">Редкость</option>
+                        <option value="name">Имя (А-Я)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="contract-inventory-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-height: 450px; overflow-y: auto; padding-right: 5px;">
+                <!-- Карточки будут отрисованы через JavaScript -->
+            </div>
+        </div>
+
+        <!-- ПРАВАЯ КОЛОНКА: ПАНЕЛЬ ОБМЕНА -->
+        <div style="flex: 0.8; min-width: 280px; max-width: 400px; background: rgba(20,35,50,0.4); border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.04); position: sticky; top: 130px; align-self: flex-start;">
+            <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 15px;">📦 Обмен</h3>
+            
+            <div id="contract-selected-items" style="min-height: 150px; border: 2px dashed rgba(255,255,255,0.05); border-radius: 12px; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start;">
+                <!-- Сюда добавляются выбранные предметы -->
+            </div>
+
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.04);">
+                <div style="display: flex; justify-content: space-between; font-size: 14px;">
+                    <span style="color: #8899aa;">Сумма контракта:</span>
+                    <span style="font-weight: 600; color: #fff;" id="contract-total-value">0 монет</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-top: 5px;">
+                    <span style="color: #8899aa;">Текущий множитель:</span>
+                    <span style="font-weight: 600; color: #f39c12;" id="contract-multiplier">x1.5</span>
+                </div>
+            </div>
+
+            <button class="btn btn-gold" onclick="doContract()" id="contract-btn" disabled style="width: 100%; font-size: 18px; padding: 12px; margin-top: 20px;">
+                🔄 Обменять
+            </button>
+            <div id="contract-result" style="margin-top: 15px; text-align: center; font-size: 16px; min-height: 30px;"></div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ===== ПЕРЕДАЕМ ДАННЫЕ ИЗ FLASK В JS =====
+let inventoryData = {{ inventory|tojson }};
+let selectedItems = [];
+let currentDifficulty = 'medium';
+const rarityOrder = { 'common': 0, 'uncommon': 1, 'rare': 2, 'epic': 3, 'legendary': 4, 'mythic': 5 };
+const rarityColors = {{ RARITY_COLORS|tojson }};
+
+// ===== ВЫБОР СЛОЖНОСТИ =====
+function setDifficulty(level) {
+    currentDifficulty = level;
+    
+    document.getElementById('diff-easy').style.borderColor = 'transparent';
+    document.getElementById('diff-easy').style.boxShadow = 'none';
+    document.getElementById('diff-medium').style.borderColor = 'transparent';
+    document.getElementById('diff-medium').style.boxShadow = 'none';
+    document.getElementById('diff-hard').style.borderColor = 'transparent';
+    document.getElementById('diff-hard').style.boxShadow = 'none';
+    
+    const el = document.getElementById('diff-' + level);
+    const color = level === 'easy' ? '#2a9a2a' : (level === 'medium' ? '#f39c12' : '#e94560');
+    el.style.borderColor = color;
+    el.style.boxShadow = `0 0 20px ${color}40`;
+    
+    const multiplier = level === 'easy' ? '1.2' : (level === 'medium' ? '1.5' : '5.0');
+    document.getElementById('contract-multiplier').innerText = 'x' + multiplier;
+}
+
+// ===== ОТРИСОВКА ИНВЕНТАРЯ (ЧЕРЕЗ JS) =====
+function renderInventory(items) {
+    const container = document.getElementById('contract-inventory-container');
+    container.innerHTML = ''; // Очищаем контейнер
+
+    if (!items || items.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px 0; color: #8899aa; grid-column: 1 / -1;">
+                <p>У тебя пока нет скинов. Открой кейс!</p>
+                <a href="/cases" style="color: #e94560; text-decoration: none; font-weight: 600;">Открой любой кейс</a>
+            </div>
+        `;
+        return;
+    }
+
+    items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'sortable-item';
+        card.dataset.id = item.id;
+        
+        // Стили карточки
+        card.style.cssText = `
+            cursor: pointer; 
+            background: rgba(12,18,28,0.6); 
+            border-radius: 12px; 
+            padding: 15px 10px; 
+            text-align: center; 
+            border: 2px solid transparent; 
+            transition: 0.3s;
+        `;
+        
+        // Содержимое
+        card.innerHTML = `
+            <img src="${item.image}" style="width: 60px; height: 60px; object-fit: contain; margin: 0 auto 5px; display: block;">
+            <div style="font-size: 11px; font-weight: 500; color: #e0e6ed;">${item.name}</div>
+            <div style="font-size: 11px; color: ${rarityColors[item.rarity] || '#e94560'};">${item.price} монет</div>
+            <div style="font-size: 10px; margin-top: 4px; color: #8899aa;">Кликни чтобы выбрать</div>
+        `;
+
+        // ★ ФИКС: Восстанавливаем красную рамку, если предмет уже выбран ★
+        const isSelected = selectedItems.some(s => String(s.id) === String(item.id));
+        if (isSelected) {
+            card.style.borderColor = '#e94560';
+        }
+
+        // Обработчик клика
+        card.addEventListener('click', function(e) {
+            toggleSelect(item.id);
+        });
+
+        container.appendChild(card);
+    });
+}
+
+// ===== ВЫБОР ПРЕДМЕТА (С ФИКСОМ СТРОГИХ ТИПОВ) =====
+function toggleSelect(itemId) {
+    // ★ ФИКС: Сравниваем ID как строки, чтобы избежать ошибки (число vs строка) ★
+    const itemData = inventoryData.find(i => String(i.id) === String(itemId));
+    if (!itemData) return; // Если данные не найдены, выходим
+
+    const idx = selectedItems.findIndex(s => String(s.id) === String(itemId));
+    const card = document.querySelector(`#contract-inventory-container .sortable-item[data-id="${itemId}"]`);
+    
+    if (idx !== -1) {
+        // Убираем предмет
+        selectedItems.splice(idx, 1);
+        if (card) card.style.borderColor = 'transparent';
+    } else {
+        // Добавляем предмет
+        if (selectedItems.length >= 10) {
+            alert('Можно выбрать максимум 10 предметов!');
+            return;
+        }
+        selectedItems.push({ ...itemData });
+        if (card) card.style.borderColor = '#e94560';
+    }
+    
+    updateContractUI();
+}
+
+// ===== ОБНОВЛЕНИЕ UI ПАНЕЛИ (БЕЗ ОШИБОК innerHTML) =====
+function updateContractUI() {
+    const container = document.getElementById('contract-selected-items');
+    
+    // Если предметов нет
+    if (selectedItems.length === 0) {
+        container.innerHTML = `
+            <p style="color: #8899aa; font-size: 13px; width: 100%; text-align: center; margin-top: 15px;" id="empty-selected-msg">Выбери предметы слева (от 3 до 10)</p>
+        `;
+        document.getElementById('contract-total-value').innerText = '0 монет';
+        document.getElementById('contract-btn').disabled = true;
+        document.getElementById('contract-result').innerHTML = '';
+        return;
+    }
+    
+    // Если предметы есть: безопасно пересоздаем DOM-элементы
+    container.innerHTML = '';
+    
+    let totalPrice = 0;
+    selectedItems.forEach(item => {
+        totalPrice += item.price;
+        const rarityColor = rarityColors[item.rarity] || '#e94560';
+        
+        const div = document.createElement('div');
+        div.style.cssText = `display: flex; align-items: center; gap: 8px; background: rgba(12,18,28,0.6); border-radius: 8px; padding: 4px 8px 4px 4px; border: 1px solid ${rarityColor};`;
+        
+        const img = document.createElement('img');
+        img.src = item.image;
+        img.style.cssText = 'width: 30px; height: 30px; object-fit: contain;';
+        div.appendChild(img);
+        
+        const span = document.createElement('span');
+        span.innerText = item.name;
+        span.style.cssText = 'font-size: 10px; color: #e0e6ed;';
+        div.appendChild(span);
+        
+        container.appendChild(div);
+    });
+    
+    document.getElementById('contract-total-value').innerText = totalPrice + ' монет';
+    
+    if (selectedItems.length >= 3 && selectedItems.length <= 10) {
+        document.getElementById('contract-btn').disabled = false;
+    } else {
+        document.getElementById('contract-btn').disabled = true;
+    }
+}
+
+// ===== ВЫПОЛНЕНИЕ КОНТРАКТА =====
+async function doContract() {
+    if (selectedItems.length < 3 || selectedItems.length > 10) return;
+    
+    const btn = document.getElementById('contract-btn');
+    const resultDiv = document.getElementById('contract-result');
+    btn.disabled = true;
+    btn.innerText = '⏳ Обмен...';
+    resultDiv.innerHTML = '<div class="loader-ring"></div>';
+    
+    window.playCoin(); // Звук клика
+    
+    const itemIds = selectedItems.map(s => s.id);
+    
+    const response = await fetch('/api/contract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            item_ids: itemIds, 
+            difficulty: currentDifficulty 
+        })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+        // Звук успеха или поражения
+        if (data.new_value > data.old_value) {
+            window.playSuccess();
+        } else {
+            window.playFail();
+        }
+
+        const modal = document.getElementById('depositModal');
+        const content = modal.querySelector('.modal-content');
+        
+        const rarityColor = rarityColors[data.item.rarity] || '#4e9a06';
+        
+        content.innerHTML = `
+            <h2 style="color: ${rarityColor};">🎉 Контракт выполнен!</h2>
+            <p style="color: #aaa; font-size: 16px; margin: 10px 0;">
+                Ты получил:
+            </p>
+            <div style="padding: 15px; border: 1px solid ${rarityColor}; border-radius: 12px; background: rgba(12,18,28,0.6);">
+                <img src="${data.item.image}" style="width: 80px; height: 80px; object-fit: contain; margin: 0 auto 10px; display: block;">
+                <div style="font-size: 18px; font-weight: 600; color: #fff;">${data.item.name}</div>
+                <div style="font-size: 16px; color: ${rarityColor};">${data.item.price} монет</div>
+                <div style="font-size: 12px; color: #8899aa; margin-top: 5px;">${data.item.type || ''} | ${data.item.rarity}</div>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn" onclick="closeContractModal()" style="flex: 1;">Ок!</button>
+            </div>
+        `;
+        modal.style.display = 'flex';
+        
+        document.getElementById('balance-display').innerText = data.balance;
+    } else {
+        resultDiv.innerHTML = `<div style="color: #e94560; font-size: 18px;">❌ ${data.message}</div>`;
+    }
+    
+    btn.disabled = false;
+    btn.innerText = '🔄 Обменять';
+    
+    selectedItems = [];
+    updateContractUI();
+    renderInventory(inventoryData);
+}
+
+function closeContractModal() {
+    document.getElementById('depositModal').style.display = 'none';
+    location.reload(); 
+}
+
+// ===== ===== СОРТИРОВКА ===== =====
+function applySortContract() {
+    const sortValue = document.getElementById('sort-contract').value;
+    localStorage.setItem('sort_contract', sortValue);
+    
+    let sortedItems = [...inventoryData];
+    
+    if (sortValue === 'price-asc') {
+        sortedItems.sort((a, b) => a.price - b.price);
+    } else if (sortValue === 'price-desc') {
+        sortedItems.sort((a, b) => b.price - a.price);
+    } else if (sortValue === 'rarity') {
+        sortedItems.sort((a, b) => (rarityOrder[a.rarity] || 0) - (rarityOrder[b.rarity] || 0));
+    } else if (sortValue === 'name') {
+        sortedItems.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+        sortedItems = [...inventoryData];
+    }
+    
+    renderInventory(sortedItems);
+}
+
+// ===== ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ =====
+document.addEventListener('DOMContentLoaded', function() {
+    const savedSort = localStorage.getItem('sort_contract');
+    if (savedSort) {
+        document.getElementById('sort-contract').value = savedSort;
+    }
+    applySortContract(); // Первый рендер
+});
+
+</script>
+
+<style>
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: rgba(12,18,28,0.6); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #e94560; border-radius: 4px; }
+</style>
+{% endblock %}

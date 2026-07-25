@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="hero">
+    <h1>🔥 Мой личный КейсБатл</h1>
+    <p>Крути кейсы, делай апгрейды, заключай контракты — все деньги остаются у тебя!</p>
+</div>
+
+<div class="menu-grid">
+    <a href="/cases" class="menu-card">
+        <div class="menu-icon">🎁</div>
+        <h3>Кейсы</h3>
+        <p>Открой и получи скины</p>
+    </a>
+    <a href="/upgrade" class="menu-card">
+        <div class="menu-icon">⬆</div>
+        <h3>Апгрейд</h3>
+        <p>Улучши свой скин</p>
+    </a>
+    <a href="/contracts" class="menu-card">
+        <div class="menu-icon">🔄</div>
+        <h3>Контракты</h3>
+        <p>Обменяй скины на лучшие</p>
+    </a>
+    <a href="/profile" class="menu-card">
+        <div class="menu-icon">👤</div>
+        <h3>Профиль</h3>
+        <p>Статистика и инвентарь</p>
+    </a>
+</div>
+{% endblock %}

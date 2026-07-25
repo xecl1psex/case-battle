@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 1200px; margin: 0 auto;">
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="font-size: 24px; font-weight: 700;">⬆ Апгрейд</h2>
+        <div style="color: #8899aa; font-size: 14px;">
+            <span>Баланс: </span><strong style="color: #fff;">{{ balance }}</strong>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        
+        <!-- ЛЕВЫЙ БЛОК: Твои скины -->
+        <div style="flex: 1.2; min-width: 320px; max-width: 500px; background: rgba(20,35,50,0.4); border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.04); overflow-x: hidden;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                <h3 style="font-size: 16px; font-weight: 600;">🎒 Мои предметы</h3>
+                <div>
+                    <select id="sort-source" onchange="applySort('source')" style="background: rgba(12,18,28,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; padding: 4px 8px; font-size: 12px;">
+                        <option value="default">По умолч.</option>
+                        <option value="price-asc">Цена (↑)</option>
+                        <option value="price-desc">Цена (↓)</option>
+                        <option value="rarity">Редкость</option>
+                        <option value="name">Имя (А-Я)</option>
+                    </select>
+                </div>
+            </div>
+            
+            {% if inventory %}
+            <div id="source-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; max-height: 400px; overflow-y: auto; padding-right: 5px; overflow-x: hidden;">
+                {% for item in inventory %}
+                <div class="sortable-item" 
+                     data-price="{{ item.price }}" 
+                     data-rarity="{{ item.rarity }}" 
+                     data-name="{{ item.name }}"
+                     onclick="toggleSource({{ item.id }}, '{{ item.name }}', {{ item.price }}, '{{ item.image }}')" 
+                     style="cursor: pointer; background: rgba(12,18,28,0.6); border-radius: 10px; padding: 15px 10px; text-align: center; border: 1px solid rgba(255,255,255,0.04); transition: 0.3s;" 
+                     id="source-{{ item.id }}">
+                    <img src="{{ item.image }}" style="width: 60px; height: 60px; object-fit: contain; margin: 0 auto 5px; display: block;">
+                    <div style="font-size: 12px; font-weight: 500; color: #e0e6ed;">{{ item.name }}</div>
+                    <div style="font-size: 12px; color: {{ RARITY_COLORS[item.rarity] }};">{{ item.price }} монет</div>
+                    <div id="source-selected-{{ item.id }}" style="font-size: 10px; color: #8899aa; margin-top: 4px;">Выбери</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 40px 0; color: #8899aa;">
+                <p>Нет доступных предметов для апгрейда</p>
+                <a href="/cases" style="color: #e94560; text-decoration: none; font-weight: 600;">Открой любой кейс</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ЦЕНТРАЛЬНЫЙ БЛОК: КОЛЕСО -->
+        <div style="flex: 1.5; min-width: 350px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            
+            <!-- КРУГОВОЕ КОЛЕСО -->
+            <div style="position: relative; width: 280px; height: 280px; margin-bottom: 25px;">
+                <div id="wheel-bg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; transition: transform 2.5s cubic-bezier(0.25, 0.1, 0.1, 1.05);"></div>
+                
+                <!-- Внутренний фон -->
+                <div style="position: absolute; top: 15px; left: 15px; width: calc(100% - 30px); height: calc(100% - 30px); border-radius: 50%; background: #0a0e14;"></div>
+
+                <div style="position: absolute; top: 5px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #8899aa; font-weight: 600;">100%</div>
+                <div style="position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #8899aa; font-weight: 600;">0%</div>
+                <div style="position: absolute; top: 50%; left: 5px; transform: translateY(-50%); font-size: 10px; color: #8899aa; font-weight: 600;">50%</div>
+                <div style="position: absolute; top: 50%; right: 5px; transform: translateY(-50%); font-size: 10px; color: #8899aa; font-weight: 600;">50%</div>
+
+                <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); z-index: 10;">
+                    <div style="width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 20px solid #e94560; filter: drop-shadow(0 0 10px #e94560);"></div>
+                </div>
+            </div>
+
+            <!-- ШАНС ТЕКСТ -->
+            <div style="display: flex; justify-content: space-between; width: 100%; max-width: 300px; margin-bottom: 15px; font-size: 14px; font-weight: 600;">
+                <span style="color: #2a9a2a;">✅ Успех: <span id="success-label">0.00%</span></span>
+                <span style="color: #e94560;">❌ Неудача: <span id="fail-label">100.00%</span></span>
+            </div>
+
+            <!-- КНОПКИ МНОЖИТЕЛЕЙ (ТЕПЕРЬ ОНИ ЕЩЁ И ФИЛЬТРУЮТ ДИАПАЗОН) -->
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
+                <button class="btn" style="padding: 4px 12px; font-size: 12px; background: #2a7a2a;" onclick="suggestTarget(1.5)">x1.5</button>
+                <button class="btn" style="padding: 4px 12px; font-size: 12px; background: #e98a2a;" onclick="suggestTarget(2)">x2</button>
+                <button class="btn" style="padding: 4px 12px; font-size: 12px; background: #e94560;" onclick="suggestTarget(5)">x5</button>
+                <button class="btn" style="padding: 4px 12px; font-size: 12px; background: #7a2a9a;" onclick="suggestTarget(10)">x10</button>
+            </div>
+
+            <button class="btn" id="upgrade-btn" onclick="doUpgrade()" disabled style="font-size: 18px; padding: 12px 40px; width: 100%; max-width: 300px;">
+                ⬆ Попытаться улучшить
+            </button>
+            <div id="upgrade-result" style="margin-top: 15px; text-align: center; font-size: 16px; min-height: 30px;"></div>
+        </div>
+
+        <!-- ПРАВЫЙ БЛОК: ЦЕЛЬ -->
+        <div style="flex: 1.2; min-width: 320px; max-width: 500px; background: rgba(20,35,50,0.4); border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.04); overflow-x: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 5px;">🎯 Выберите предмет</h3>
+                <div>
+                    <select id="sort-target" onchange="applySortTarget()" style="background: rgba(12,18,28,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; padding: 4px 8px; font-size: 12px;">
+                        <option value="default">По умолч.</option>
+                        <option value="price-asc">Цена (↑)</option>
+                        <option value="price-desc">Цена (↓)</option>
+                        <option value="rarity">Редкость</option>
+                        <option value="name">Имя (А-Я)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- ФИЛЬТР ПО ЦЕНЕ -->
+            <div style="display: flex; gap: 8px; margin-bottom: 15px; align-items: center;">
+                <input type="number" id="price-from" placeholder="От" oninput="applySortTarget()" style="width: 60px; background: rgba(12,18,28,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; padding: 4px 6px; font-size: 12px;">
+                <span style="color: #8899aa; font-size: 12px;">—</span>
+                <input type="number" id="price-to" placeholder="До" oninput="applySortTarget()" style="width: 60px; background: rgba(12,18,28,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; padding: 4px 6px; font-size: 12px;">
+                <span style="color: #8899aa; font-size: 11px; margin-left: auto;">(Впишутся авто)</span>
+            </div>
+            
+            <div id="target-select" style="min-height: 80px; border: 2px dashed rgba(255,255,255,0.05); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
+                <p style="color: #8899aa; font-size: 14px;">Сначала выбери скины слева</p>
+            </div>
+            
+            <!-- КОНТЕЙНЕР ЦЕЛЕЙ (ОТРИСОВЫВАЕТСЯ ДИНАМИЧЕСКИ) -->
+            <div id="target-container" style="max-height: 350px; overflow-y: auto; padding-right: 5px; overflow-x: hidden; cursor: pointer;">
+                <!-- Сюда через JS будут загружаться карточки -->
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ===== ДАННЫЕ =====
+let allSkinsData = {{ all_skins|tojson }};
+let selectedSources = [];
+let targetItem = null;
+let currentChance = 0;
+const rarityOrder = { 'common': 0, 'uncommon': 1, 'rare': 2, 'epic': 3, 'legendary': 4, 'mythic': 5 };
+const rarityColors = {{ RARITY_COLORS|tojson }};
+
+// ===== ИНИЦИАЛИЗАЦИЯ =====
+function initSortFromStorage() {
+    const sourceSort = localStorage.getItem('sort_source');
+    const targetSort = localStorage.getItem('sort_target');
+    
+    if (sourceSort) {
+        document.getElementById('sort-source').value = sourceSort;
+        applySort('source');
+    }
+    if (targetSort) {
+        document.getElementById('sort-target').value = targetSort;
+    }
+    applySortTarget(); // Первая загрузка целей
+}
+
+// ===== ЛЕВАЯ СТОРОНА =====
+function toggleSource(itemId, name, price, image) {
+    const index = selectedSources.findIndex(s => s.id === itemId);
+    
+    if (index !== -1) {
+        selectedSources.splice(index, 1);
+        document.getElementById('source-' + itemId).style.borderColor = 'rgba(255,255,255,0.04)';
+        document.getElementById('source-selected-' + itemId).innerText = 'Выбери';
+        document.getElementById('source-selected-' + itemId).style.color = '#8899aa';
+    } else {
+        if (selectedSources.length >= 6) {
+            alert('Можно выбрать максимум 6 скинов!');
+            return;
+        }
+        selectedSources.push({ id: itemId, name: name, price: price, image: image });
+        document.getElementById('source-' + itemId).style.borderColor = '#e94560';
+        document.getElementById('source-selected-' + itemId).innerText = '✅ Выбран';
+        document.getElementById('source-selected-' + itemId).style.color = '#2a9a2a';
+    }
+    
+    const totalPrice = selectedSources.reduce((sum, s) => sum + s.price, 0);
+    
+    if (selectedSources.length > 0) {
+        document.getElementById('target-select').innerHTML = `
+            <div style="text-align: center;">
+                <p style="color: #e0e6ed; margin-bottom: 5px;">Выбрано <strong>${selectedSources.length}</strong> предметов</p>
+                <p style="color: #8899aa; font-size: 12px;">Суммарно: <strong>${totalPrice}</strong> монет</p>
+                <p style="color: #8899aa; font-size: 12px; margin-top: 5px;">Теперь выбери цель справа</p>
+            </div>
+        `;
+    } else {
+        document.getElementById('target-select').innerHTML = `<p style="color: #8899aa; font-size: 14px;">Выбери скины слева</p>`;
+    }
+    
+    if (targetItem) updateWheel();
+}
+
+// ===== ПРАВАЯ СТОРОНА: ДИНАМИЧЕСКАЯ ОТРИСОВКА =====
+function renderTargetItems(items) {
+    const container = document.getElementById('target-container');
+    container.innerHTML = ''; // Очистить список
+
+    items.forEach(skin => {
+        const card = document.createElement('div');
+        card.className = 'target-item';
+        card.dataset.name = skin.name;
+        card.dataset.price = skin.price;
+        card.dataset.image = skin.image;
+        card.dataset.rarity = skin.rarity;
+        
+        card.style.cssText = `
+            cursor: pointer; 
+            background: rgba(12,18,28,0.6); 
+            border-radius: 10px; 
+            padding: 15px 10px; 
+            text-align: center; 
+            border: 1px solid rgba(255,255,255,0.04); 
+            transition: 0.3s;
+        `;
+        
+        card.innerHTML = `
+            <img src="${skin.image}" style="width: 60px; height: 60px; object-fit: contain; margin: 0 auto 5px; display: block;">
+            <div style="font-size: 12px; font-weight: 500; color: #e0e6ed;">${skin.name}</div>
+            <div style="font-size: 12px; color: ${rarityColors[skin.rarity] || '#e94560'};">${skin.price} монет</div>
+        `;
+
+        // Обработчик клика
+        card.addEventListener('click', function() {
+            selectTarget(skin.name, skin.price, skin.image, skin.rarity);
+        });
+
+        // Если это текущая выбранная цель, подсветить красной рамкой
+        if (targetItem && targetItem.name === skin.name && targetItem.price === skin.price) {
+            card.style.borderColor = '#e94560';
+        }
+
+        container.appendChild(card);
+    });
+}
+
+function applySortTarget() {
+    const sortValue = document.getElementById('sort-target').value;
+    localStorage.setItem('sort_target', sortValue);
+    
+    const fromPrice = parseFloat(document.getElementById('price-from').value) || 0;
+    const toPrice = parseFloat(document.getElementById('price-to').value) || Infinity;
+    
+    // Фильтрация данных
+    let filteredItems = allSkinsData.filter(item => {
+        const minPrice = Math.min(fromPrice, toPrice);
+        const maxPrice = Math.max(fromPrice, toPrice);
+        return item.price >= minPrice && item.price <= maxPrice;
+    });
+
+    // Сортировка данных
+    if (sortValue === 'price-asc') {
+        filteredItems.sort((a, b) => a.price - b.price);
+    } else if (sortValue === 'price-desc') {
+        filteredItems.sort((a, b) => b.price - a.price);
+    } else if (sortValue === 'rarity') {
+        filteredItems.sort((a, b) => (rarityOrder[a.rarity] || 0) - (rarityOrder[b.rarity] || 0));
+    } else if (sortValue === 'name') {
+        filteredItems.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    
+    renderTargetItems(filteredItems);
+}
+
+// ===== ВЫБОР ЦЕЛИ =====
+function selectTarget(name, price, image, rarity) {
+    document.querySelectorAll('.target-item').forEach(el => {
+        el.style.borderColor = 'rgba(255,255,255,0.04)';
+    });
+    
+    const targetDiv = document.querySelector(`.target-item[data-name="${name}"]`);
+    if (targetDiv) targetDiv.style.borderColor = '#e94560';
+    
+    targetItem = { name: name, price: price, image: image, rarity: rarity };
+    
+    document.getElementById('target-select').innerHTML = `
+        <div style="text-align: center;">
+            <img src="${image}" style="width: 60px; height: 60px; object-fit: contain; margin: 5px auto; display: block;">
+            <strong style="font-size: 16px; color: #e0e6ed;">${name}</strong>
+            <p style="color: #b03aff; font-size: 14px; font-weight: 600;">${price} монет</p>
+        </div>
+    `;
+    
+    document.getElementById('upgrade-result').innerHTML = '';
+    updateWheel();
+}
+
+// ===== ★ ОБНОВЛЕННАЯ ЛОГИКА: ЗАПОЛНЕНИЕ ФИЛЬТРОВ И АВТО-ВЫБОР ★ =====
+function suggestTarget(multiplier) {
+    const resultDiv = document.getElementById('upgrade-result');
+    
+    if (selectedSources.length === 0) {
+        resultDiv.innerHTML = '<div style="color: #e94560; font-size: 16px;">❌ Сначала выбери скины слева!</div>';
+        return;
+    }
+    
+    const totalSourcePrice = selectedSources.reduce((sum, s) => sum + s.price, 0);
+    const targetPrice = totalSourcePrice * multiplier;
+
+    // 1. Заполняем поля фильтрации "От" и "До"
+    // Формула: От = targetPrice * 0.4, До = targetPrice * 0.8 
+    // (Пример: 500 * 5 = 2500. От 1000, До 2000)
+    const fromVal = Math.floor(targetPrice * 0.4);
+    const toVal = Math.ceil(targetPrice * 0.8);
+    
+    document.getElementById('price-from').value = fromVal;
+    document.getElementById('price-to').value = toVal;
+    
+    // 2. Обновляем список скинов с применением нового фильтра
+    applySortTarget();
+    
+    // 3. Автоматически выбираем самый близкий по цене скин в этом диапазоне
+    const items = document.querySelectorAll('#target-container .target-item');
+    let bestItem = null;
+    let bestDiff = Infinity;
+    
+    items.forEach(el => {
+        const price = parseFloat(el.getAttribute('data-price'));
+        if (price > totalSourcePrice) { // Обязательно дороже того, что мы отдаем
+            const diff = Math.abs(price - targetPrice);
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                bestItem = el;
+            }
+        }
+    });
+    
+    if (bestItem) {
+        resultDiv.innerHTML = '';
+        bestItem.click(); // Программный клик для выбора идеального скина
+    } else {
+        resultDiv.innerHTML = `
+            <div style="color: #e94560; font-size: 16px;">
+                ❌ Нет скинов в этом диапазоне! Попробуй изменить множитель.
+            </div>
+        `;
+    }
+}
+
+// ===== ОБНОВЛЕНИЕ КОЛЕСА =====
+function updateWheel() {
+    if (selectedSources.length > 0 && targetItem) {
+        const totalPrice = selectedSources.reduce((sum, s) => sum + s.price, 0);
+        let currentChance = (totalPrice / targetItem.price) * 100;
+        
+        currentChance = Math.round(currentChance * 100) / 100;
+        currentChance = Math.min(95, currentChance);
+        
+        const redDeg = (100 - currentChance) * 3.6;
+        const gradient = `conic-gradient(from 0deg, #e94560 0%, #e94560 ${redDeg}deg, #2a9a2a ${redDeg}deg, #2a9a2a 360deg)`;
+        
+        const wheel = document.getElementById('wheel-bg');
+        wheel.style.background = gradient;
+        wheel.style.transition = 'none';
+        wheel.style.transform = 'rotate(0deg)';
+        
+        document.getElementById('success-label').innerText = currentChance.toFixed(2) + '%';
+        document.getElementById('fail-label').innerText = (100 - currentChance).toFixed(2) + '%';
+        
+        document.getElementById('upgrade-btn').disabled = false;
+        document.getElementById('upgrade-btn').innerText = `⬆ Попытаться улучшить (${selectedSources.length} шт.)`;
+    }
+}
+
+// ===== ОСНОВНОЙ АПГРЕЙД =====
+async function doUpgrade() {
+    if (selectedSources.length === 0 || !targetItem) return;
+    
+    const totalPrice = selectedSources.reduce((sum, s) => sum + s.price, 0);
+    let checkChance = (totalPrice / targetItem.price) * 100;
+    checkChance = Math.round(checkChance * 100) / 100;
+    if (checkChance <= 0) {
+        document.getElementById('upgrade-result').innerHTML = `<div style="color: #e94560; font-size: 16px;">❌ Шанс 0.00%! Выберите более дешевую цель.</div>`;
+        return;
+    }
+
+    const btn = document.getElementById('upgrade-btn');
+    const resultDiv = document.getElementById('upgrade-result');
+    btn.disabled = true;
+    btn.innerText = '⏳ Сервер решает...';
+    resultDiv.innerHTML = '<div class="loader-ring"></div>';
+    
+    const sourceIds = selectedSources.map(s => s.id);
+    
+    const response = await fetch('/api/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            source_item_ids: sourceIds,
+            target_item_name: targetItem.name,
+            target_item_price: targetItem.price
+        })
+    });
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+        resultDiv.innerHTML = `<div style="color: #e94560;">❌ ${data.message}</div>`;
+        btn.disabled = false;
+        btn.innerText = '⬆ Попытаться улучшить';
+        return;
+    }
+    
+    const wheel = document.getElementById('wheel-bg');
+    wheel.style.transition = 'none';
+    
+    let targetRoll;
+    if (data.is_win) {
+        targetRoll = Math.random() * data.chance;
+    } else {
+        targetRoll = data.chance + Math.random() * (100 - data.chance);
+    }
+    
+    const targetAngle = (targetRoll / 100) * 360 + (360 * 5);
+    
+    wheel.style.transform = 'rotate(0deg)';
+    await new Promise(r => setTimeout(r, 50));
+    
+    window.playSpin();
+
+    wheel.style.transition = 'transform 2.8s cubic-bezier(0.25, 0.1, 0.1, 1.05)';
+    wheel.style.transform = `rotate(${targetAngle}deg)`;
+    
+    await new Promise(r => setTimeout(r, 3000));
+    
+    const color = data.is_win ? '#2a9a2a' : '#e94560';
+    resultDiv.innerHTML = `<div style="color: ${color}; font-size: 20px; font-weight: 600;">${data.message}</div>`;
+    document.getElementById('balance-display').innerText = data.balance;
+    
+    if (data.is_win) {
+        window.playSuccess();
+    } else {
+        window.playFail();
+    }
+    
+    btn.disabled = false;
+    btn.innerText = '⬆ Попытаться улучшить';
+    setTimeout(() => location.reload(), 3000);
+}
+
+// ===== СОРТИРОВКА ЛЕВОЙ ПАНЕЛИ =====
+function applySort(type) {
+    const containerId = type === 'source' ? 'source-container' : 'target-container';
+    const container = document.getElementById(containerId);
+    const items = Array.from(container.querySelectorAll('.sortable-item'));
+    const sortValue = document.getElementById('sort-' + type).value;
+    localStorage.setItem('sort_' + type, sortValue);
+    
+    if (sortValue === 'default') return;
+    
+    let sortedItems = [];
+    if (sortValue === 'price-asc') {
+        sortedItems = items.sort((a, b) => parseFloat(a.dataset.price) - parseFloat(b.dataset.price));
+    } else if (sortValue === 'price-desc') {
+        sortedItems = items.sort((a, b) => parseFloat(b.dataset.price) - parseFloat(a.dataset.price));
+    } else if (sortValue === 'rarity') {
+        sortedItems = items.sort((a, b) => (rarityOrder[a.dataset.rarity] || 0) - (rarityOrder[b.dataset.rarity] || 0));
+    } else if (sortValue === 'name') {
+        sortedItems = items.sort((a, b) => a.dataset.name.localeCompare(b.dataset.name));
+    }
+    container.innerHTML = '';
+    sortedItems.forEach(item => container.appendChild(item));
+}
+
+document.addEventListener('DOMContentLoaded', initSortFromStorage);
+</script>
+
+<style>
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: rgba(12,18,28,0.6); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #e94560; border-radius: 4px; }
+</style>
+{% endblock %}

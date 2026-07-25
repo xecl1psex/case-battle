@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 900px; margin: 0 auto;">
+    <div style="text-align: center;">
+        <img src="{{ case.image }}" alt="{{ case.name }}" id="case-image" style="max-width: 160px; margin-bottom: 15px; border-radius: 12px; border: 2px solid #e94560; transition: transform 0.3s;">
+        <h2>{{ case.name }}</h2>
+        <p style="font-size: 18px; color: #e94560;">Цена: {{ case.price }} монет</p>
+        
+        <!-- Выбор количества лент -->
+        <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 15px; flex-wrap: wrap;">
+            <span style="color: #aaa; line-height: 36px; font-size: 14px;">Количество:</span>
+            <button class="btn" style="font-size: 13px; padding: 6px 14px;" onclick="setBatchSize(1)">x1</button>
+            <button class="btn" style="font-size: 13px; padding: 6px 14px; background: #3a7aff;" onclick="setBatchSize(3)">x3</button>
+            <button class="btn" style="font-size: 13px; padding: 6px 14px; background: #b03aff;" onclick="setBatchSize(5)">x5</button>
+            <button class="btn" style="font-size: 13px; padding: 6px 14px; background: #ff8c00;" onclick="setBatchSize(10)">x10</button>
+        </div>
+        <p style="font-size: 13px; color: #888; margin-bottom: 10px;">Выбрано: <strong id="batch-count-display">1</strong> лента</p>
+
+        <button class="btn" onclick="openCase('{{ case_type }}')" id="open-btn" style="font-size: 18px; padding: 12px 32px;">
+            🎲 Открыть кейс
+        </button>
+        <div id="result" style="margin-top: 20px; min-height: 80px;">
+            <p style="color: #888; font-size: 14px;">Нажми "Открыть кейс", чтобы начать</p>
+        </div>
+    </div>
+    
+    <h3 style="margin-top: 30px; font-size: 20px;">Что можно выбить (шансы):</h3>
+    <div class="item-grid">
+        {% for item in case.drop_list %}
+        <div class="item-card" style="position: relative; padding: 12px;">
+            <img src="{{ item.image }}" alt="{{ item.name }}" style="border-radius: 8px; width: 80px; height: 80px; object-fit: contain;">
+            <div class="name" style="font-size: 13px;">{{ item.name }}</div>
+            <div class="price" style="font-size: 12px; color: {{ RARITY_COLORS[item.rarity] }};">{{ item.price }} монет</div>
+            <div class="rarity" style="background: {{ RARITY_COLORS[item.rarity] }}; color: #fff; font-size: 10px; padding: 2px 6px;">{{ RARITY_NAMES[item.rarity] }}</div>
+            <div style="position: absolute; top: -8px; right: -8px; background: #e94560; color: #fff; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 12px; border: 2px solid #1a1a2e; box-shadow: 0 0 10px rgba(233,69,96,0.5);">
+                {{ "%.2f"|format(item.chance) }}%
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+let batchSize = 1;
+let casePrice = {{ case.price }};
+let currentDropItemIds = []; 
+
+function setBatchSize(size) {
+    batchSize = size;
+    document.getElementById('batch-count-display').innerText = size;
+}
+
+async function openCase(caseType) {
+    const resultDiv = document.getElementById('result');
+    const btn = document.getElementById('open-btn');
+    
+    btn.disabled = true;
+    btn.innerText = '⏳ Загрузка...';
+    resultDiv.innerHTML = '<div style="font-size: 14px; color: #888;">⚡ Сервер решает судьбу...</div>';
+    
+    const requests = [];
+    for (let i = 0; i < batchSize; i++) {
+        requests.push(fetch('/api/open_case', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ case_type: caseType })
+        }));
+    }
+    
+    const responses = await Promise.all(requests);
+    const dataArray = [];
+    for (const res of responses) {
+        const data = await res.json();
+        if (data.success) {
+            dataArray.push(data);
+        } else {
+            dataArray.push({ success: false, message: data.message });
+        }
+    }
+    
+    const successfulItems = dataArray.filter(d => d.success);
+    
+    if (successfulItems.length === 0) {
+        resultDiv.innerHTML = `<div style="color: #e94560; font-size: 16px;">❌ Недостаточно средств!</div>`;
+        btn.disabled = false;
+        btn.innerText = '🎲 Открыть кейс';
+        return;
+    }
+
+    currentDropItemIds = [];
+
+    let html = `<div style="overflow: hidden; width: 100%; margin: 15px 0;"><div class="loader-ring"></div></div>`;
+    resultDiv.innerHTML = html;
+    
+    html = `<div style="overflow: hidden; width: 100%; margin: 15px 0;">`;
+    
+    for (let batchIndex = 0; batchIndex < successfulItems.length; batchIndex++) {
+        const data = successfulItems[batchIndex];
+        const winItem = data.item;
+        currentDropItemIds.push(data.item_id);
+        
+        const allItems = {{ case.drop_list | tojson }};
+        let slotItems = [];
+        
+        for (let i = 0; i < 3; i++) {
+            let shuffled = [...allItems];
+            for (let j = shuffled.length - 1; j > 0; j--) {
+                const k = Math.floor(Math.random() * (j + 1));
+                [shuffled[j], shuffled[k]] = [shuffled[k], shuffled[j]];
+            }
+            slotItems = slotItems.concat(shuffled);
+        }
+        
+        slotItems.push(winItem);
+        for (let i = 0; i < 4; i++) {
+            slotItems.push({...winItem, name: "..."});
+        }
+
+        html += `
+            <div style="position: relative; height: 120px; margin-bottom: 15px; border-radius: 12px; background: #0f0f1a; border: 1px solid #0f3460; overflow: hidden;">
+                <div class="slot-machine-${batchIndex}" style="display: flex; gap: 8px; position: absolute; left: 0; top: 10px; transition: none;">
+        `;
+        
+        slotItems.forEach((item) => {
+            html += `
+                <div style="flex-shrink: 0; width: 80px; height: 80px; background: #1a1a2e; border: 1px solid #0f3460; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 4px;">
+                    <img src="${item.image}" style="width: 40px; height: 40px; object-fit: contain;">
+                    <span style="font-size: 7px; color: #aaa; margin-top: 3px; text-align: center; line-height: 1;">${item.name}</span>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+                <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); z-index: 10;">
+                    <div style="width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 20px solid #e94560; filter: drop-shadow(0 0 10px #e94560);"></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    
+    resultDiv.innerHTML = html;
+    
+    // ★ ЗАПУСКАЕМ ПРИЯТНЫЙ ЗВУК ВРАЩЕНИЯ ★
+    window.playSpin();
+
+    const animationPromises = [];
+    for (let i = 0; i < successfulItems.length; i++) {
+        const data = successfulItems[i];
+        const winItem = data.item;
+        const allItems = {{ case.drop_list | tojson }};
+        
+        const slotMachine = document.querySelector(`.slot-machine-${i}`);
+        const containerWidth = slotMachine.parentElement.offsetWidth;
+        const itemWidth = 88;
+        const poolLength = allItems.length;
+        const winIndex = 3 * poolLength;
+        
+        const stopPosition = -(winIndex * itemWidth) + (containerWidth / 2) - (itemWidth / 2);
+        
+        slotMachine.style.transition = 'none';
+        slotMachine.style.left = '0px';
+        
+        setTimeout(() => {
+            const randomSpeed = 2.5 + Math.random() * 2.0;
+            slotMachine.style.transition = `left ${randomSpeed}s cubic-bezier(0.25, 0.1, 0.1, 1.05)`;
+            slotMachine.style.left = stopPosition + 'px';
+        }, 50);
+        
+        animationPromises.push(new Promise(r => setTimeout(r, 3500)));
+    }
+    
+    await Promise.all(animationPromises);
+    
+    // ★ ПОСЛЕ АНИМАЦИИ, ЕСЛИ ЕСТЬ ХОТЯ БЫ 1 ВЫИГРЫШ, ИГРАЕМ МЕЛОДИЮ ★
+    if (successfulItems.length > 0) {
+        window.playSuccess();
+    }
+
+    // ★ СЧИТАЕМ ОБЩУЮ СТАТИСТИКУ ПО ДРОПУ ★
+    let totalBatchValue = 0;
+    for (let i = 0; i < successfulItems.length; i++) {
+        totalBatchValue += successfulItems[i].item.price;
+    }
+    const totalSpent = successfulItems.length * casePrice;
+    const roiPercent = ((totalBatchValue / totalSpent) * 100).toFixed(1);
+    const isBatchProfitable = totalBatchValue >= totalSpent;
+
+    // Сортируем предметы от самого дорогого к самому дешёвому
+    const sortedItems = successfulItems.sort((a, b) => b.item.price - a.item.price);
+
+    let resultHtml = `
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+            <!-- СВОДКА ПО ТРАТАМ -->
+            <div style="display: flex; justify-content: center; gap: 20px; padding: 12px; background: rgba(12,18,28,0.6); border-radius: 12px; border: 1px solid rgba(255,255,255,0.04); font-size: 14px; flex-wrap: wrap;">
+                <div>Потрачено: <strong style="color: #e94560;">${totalSpent}</strong> монет</div>
+                <div>Выиграно: <strong style="color: ${isBatchProfitable ? '#4e9a06' : '#8899aa'};">${totalBatchValue}</strong> монет</div>
+                <div>Окупаемость: <strong style="color: ${isBatchProfitable ? '#4e9a06' : '#e94560'};">${roiPercent}%</strong></div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+    `;
+    
+    for (let i = 0; i < sortedItems.length; i++) {
+        const data = sortedItems[i];
+        const winItem = data.item;
+        const itemId = data.item_id;
+        
+        const isItemProfitable = winItem.price >= casePrice;
+        const rarityColor = winItem.rarity === 'legendary' ? '#ff8c00' : 
+                           winItem.rarity === 'epic' ? '#b03aff' :
+                           winItem.rarity === 'rare' ? '#3a7aff' : '#4e9a06';
+        
+        const bgGradient = isItemProfitable ? 
+            'background: linear-gradient(135deg, #2a2a1a, #1a1a2e); border: 1px solid #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.2);' : 
+            'background: #1a1a2e; border: 1px solid #444;';
+        
+        const icon = isItemProfitable ? '🔥' : '😕';
+        const statusText = isItemProfitable ? 'Окупилось!' : 'Не окупилось';
+        
+        const delay = i * 0.1;
+
+        resultHtml += `
+            <div class="result-item" style="animation-delay: ${delay}s; padding: 12px; border-radius: 12px; ${bgGradient}; text-align: center; display: flex; flex-direction: column; align-items: center;">
+                <div style="font-size: 18px; margin-bottom: 4px;">${icon}</div>
+                <div style="font-size: 12px; font-weight: bold; color: ${isItemProfitable ? '#ffd700' : '#888'};">${statusText}</div>
+                <img src="${winItem.image}" style="width: 50px; height: 50px; object-fit: contain; margin: 6px 0;">
+                <div style="font-size: 13px; font-weight: bold; margin-bottom: 2px;">${winItem.name}</div>
+                <div style="font-size: 12px; color: ${rarityColor};">${winItem.price} монет</div>
+                <div style="font-size: 10px; color: #aaa; margin-bottom: 8px;">${winItem.type || ''} | ${winItem.rarity}</div>
+                
+                <div style="display: flex; gap: 6px; width: 100%;">
+                    <button class="btn" style="font-size: 11px; padding: 4px 10px; background: #4e9a06; flex: 1;" onclick="sellItemAndReload(${itemId})">
+                        💰 Продать
+                    </button>
+                    <button class="btn" style="font-size: 11px; padding: 4px 10px; background: #f39c12; flex: 1;" onclick="keepItem()">
+                        📦 Оставить
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    resultHtml += `
+            </div>
+        </div>
+    `;
+    
+    resultHtml += `
+        <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px; flex-wrap: wrap;">
+            <button class="btn" style="font-size: 18px; padding: 12px 30px; background: #e94560;" onclick="openCase('{{ case_type }}')">
+                🔄 Открыть ещё раз
+            </button>
+        </div>
+    `;
+    
+    if (currentDropItemIds.length > 1) {
+        let totalDropValue = 0;
+        for (let i = 0; i < successfulItems.length; i++) {
+            totalDropValue += successfulItems[i].item.price;
+        }
+        
+        resultHtml += `
+            <div style="text-align: center; margin-top: 15px;">
+                <button class="btn btn-gold" style="font-size: 16px; padding: 10px 30px;" onclick="confirmSellAllDrop(${currentDropItemIds.length}, ${totalDropValue})">
+                    💰 Продать весь дроп (${currentDropItemIds.length} предметов)
+                </button>
+            </div>
+        `;
+    }
+    
+    resultDiv.innerHTML = resultHtml;
+    
+    if (successfulItems.length > 0) {
+        const lastItem = successfulItems[successfulItems.length - 1];
+        document.getElementById('balance-display').innerText = lastItem.balance;
+    }
+    
+    btn.disabled = false;
+    btn.innerText = '🎲 Открыть кейс';
+}
+
+async function sellItemAndReload(itemId) {
+    if (!itemId) return;
+    const response = await fetch('/api/sell_item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: itemId })
+    });
+    const data = await response.json();
+    if (data.success) {
+        window.playCoin(); // Звук монет при продаже
+        document.getElementById('balance-display').innerText = data.balance;
+        alert(`✅ Скин продан за ${data.price} монет!`);
+        location.reload();
+    } else {
+        alert('❌ Ошибка при продаже');
+    }
+}
+
+function confirmSellAllDrop(count, totalValue) {
+    const modal = document.getElementById('depositModal');
+    const content = modal.querySelector('.modal-content');
+    
+    content.innerHTML = `
+        <h2 style="color: #f39c12;">⚠️ Подтверждение</h2>
+        <p style="color: #aaa; font-size: 16px; margin: 10px 0;">
+            Ты уверен, что хочешь продать <strong>ВСЕ ${count}</strong> скинов за <strong style="color: #ffd700;">${totalValue} монет</strong>?
+        </p>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+            <button class="btn btn-gold" onclick="executeSellAllDrop()" style="flex: 1;">✅ Да, продать!</button>
+            <button class="btn" style="background: #555; flex: 1;" onclick="closeDepositModal()">❌ Отмена</button>
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+}
+
+async function executeSellAllDrop() {
+    if (currentDropItemIds.length === 0) return;
+    
+    document.getElementById('depositModal').style.display = 'none';
+    
+    let totalEarned = 0;
+    for (const id of currentDropItemIds) {
+        const response = await fetch('/api/sell_item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ item_id: id })
+        });
+        const data = await response.json();
+        if (data.success) {
+            totalEarned += data.price;
+        }
+    }
+    
+    window.playCoin();
+    alert(`✅ Все скины проданы! Ты заработал ${totalEarned} монет!`);
+    location.reload();
+}
+
+function keepItem() {
+    alert('✅ Скин оставлен в инвентаре.');
+}
+
+</script>
+
+<style>
+@keyframes glow {
+    0% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.1); }
+    100% { box-shadow: 0 0 40px rgba(255, 255, 255, 0.4); }
+}
+
+.result-item {
+    opacity: 0;
+    animation: slideUp 0.4s ease forwards;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}
