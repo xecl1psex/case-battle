@@ -7,6 +7,7 @@ import random
 import os
 import threading
 import time
+import sqlite3
 
 def install_and_import(package):
     try:
@@ -354,7 +355,7 @@ def index():
         return redirect(url_for('login_page'))
     feed = database.get_drop_feed(15)
     online_users = database.get_online_users()
-    return render_template('index.html', balance=user_data['balance'], feed=feed, now=time.time(), online_users=online_users)
+    return render_template('index.html', balance=user_data['balance'], feed=feed, now=time.time(), online_users=online_users, page='home')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login_page():
@@ -366,7 +367,7 @@ def login_page():
             session['user_id'] = result['user_id']
             return redirect(url_for('index'))
         return render_template('login.html', error=result['message'])
-    return render_template('login.html', error=None)
+    return render_template('login.html', error=None, page='login')
 
 @app.route('/register', methods=['POST'])
 def register_page():
@@ -381,7 +382,7 @@ def register_page():
     if result['success']:
         session['user_id'] = result['user_id']
         return redirect(url_for('index'))
-    return render_template('login.html', error=result['message'])
+    return render_template('login.html', error=result['message'], page='login')
 
 @app.route('/logout')
 def logout():
@@ -397,7 +398,7 @@ def cases():
         return redirect(url_for('login_page'))
     feed = database.get_drop_feed(15)
     online_users = database.get_online_users()
-    return render_template('cases.html', cases=CASES, balance=user_data['balance'], feed=feed, now=time.time(), online_users=online_users)
+    return render_template('cases.html', cases=CASES, balance=user_data['balance'], feed=feed, now=time.time(), online_users=online_users, page='cases')
 
 @app.route('/case/<case_type>')
 def case_page(case_type):
@@ -412,7 +413,7 @@ def case_page(case_type):
     feed = database.get_drop_feed(15)
     online_users = database.get_online_users()
     return render_template('case_page.html', case=case, case_type=case_type, balance=user_data['balance'], 
-                          RARITY_COLORS=RARITY_COLORS, RARITY_NAMES=RARITY_NAMES, feed=feed, now=time.time(), online_users=online_users)
+                          RARITY_COLORS=RARITY_COLORS, RARITY_NAMES=RARITY_NAMES, feed=feed, now=time.time(), online_users=online_users, page='cases')
 
 @app.route('/upgrade')
 def upgrade():
@@ -424,7 +425,7 @@ def upgrade():
     feed = database.get_drop_feed(15)
     online_users = database.get_online_users()
     return render_template('upgrade.html', inventory=database.get_inventory(session['user_id']), all_skins=ALL_ITEMS, balance=user_data['balance'],
-                          RARITY_COLORS=RARITY_COLORS, RARITY_NAMES=RARITY_NAMES, feed=feed, now=time.time(), online_users=online_users)
+                          RARITY_COLORS=RARITY_COLORS, RARITY_NAMES=RARITY_NAMES, feed=feed, now=time.time(), online_users=online_users, page='upgrade')
 
 @app.route('/contracts')
 def contracts():
@@ -436,7 +437,7 @@ def contracts():
     feed = database.get_drop_feed(15)
     online_users = database.get_online_users()
     return render_template('contracts.html', inventory=database.get_inventory(session['user_id']), all_skins=ALL_ITEMS, balance=user_data['balance'],
-                          RARITY_COLORS=RARITY_COLORS, RARITY_NAMES=RARITY_NAMES, feed=feed, now=time.time(), online_users=online_users)
+                          RARITY_COLORS=RARITY_COLORS, RARITY_NAMES=RARITY_NAMES, feed=feed, now=time.time(), online_users=online_users, page='contracts')
 
 @app.route('/profile')
 def profile():
@@ -449,7 +450,7 @@ def profile():
     feed = database.get_drop_feed(20)
     online_users = database.get_online_users()
     return render_template('profile.html', stats=user_data, inventory=inventory, balance=user_data['balance'], feed=feed,
-                          RARITY_COLORS=RARITY_COLORS, RARITY_NAMES=RARITY_NAMES, now=time.time(), online_users=online_users)
+                          RARITY_COLORS=RARITY_COLORS, RARITY_NAMES=RARITY_NAMES, now=time.time(), online_users=online_users, page='profile')
 
 # ---- API (КЕЙСЫ) ----
 @app.route('/api/open_case', methods=['POST'])
@@ -678,7 +679,7 @@ def contract():
         "inventory": database.get_inventory(user_id)
     })
 
-# ===== ДОБАВЛЕНО: API ДЛЯ СБРОСА АККАУНТА =====
+# ===== API ДЛЯ СБРОСА АККАУНТА =====
 @app.route('/api/reset_account', methods=['POST'])
 def reset_account():
     if 'user_id' not in session:
