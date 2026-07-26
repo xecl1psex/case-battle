@@ -119,9 +119,8 @@
                 <p style="color: #8899aa; font-size: 14px;">Сначала выбери скины слева</p>
             </div>
             
-            <!-- КОНТЕЙНЕР ЦЕЛЕЙ (ОТРИСОВЫВАЕТСЯ ДИНАМИЧЕСКИ) -->
+            <!-- КОНТЕЙНЕР ЦЕЛЕЙ -->
             <div id="target-container" style="max-height: 350px; overflow-y: auto; padding-right: 5px; overflow-x: hidden; cursor: pointer;">
-                <!-- Сюда через JS будут загружаться карточки -->
             </div>
         </div>
 
@@ -129,7 +128,6 @@
 </div>
 
 <script>
-// ===== ДАННЫЕ =====
 let allSkinsData = {{ all_skins|tojson }};
 let selectedSources = [];
 let targetItem = null;
@@ -137,7 +135,6 @@ let currentChance = 0;
 const rarityOrder = { 'common': 0, 'uncommon': 1, 'rare': 2, 'epic': 3, 'legendary': 4, 'mythic': 5 };
 const rarityColors = {{ RARITY_COLORS|tojson }};
 
-// ===== ИНИЦИАЛИЗАЦИЯ =====
 function initSortFromStorage() {
     const sourceSort = localStorage.getItem('sort_source');
     const targetSort = localStorage.getItem('sort_target');
@@ -149,10 +146,9 @@ function initSortFromStorage() {
     if (targetSort) {
         document.getElementById('sort-target').value = targetSort;
     }
-    applySortTarget(); // Первая загрузка целей
+    applySortTarget();
 }
 
-// ===== ЛЕВАЯ СТОРОНА =====
 function toggleSource(itemId, name, price, image) {
     const index = selectedSources.findIndex(s => s.id === itemId);
     
@@ -189,7 +185,6 @@ function toggleSource(itemId, name, price, image) {
     if (targetItem) updateWheel();
 }
 
-// ===== ПРАВАЯ СТОРОНА =====
 function renderTargetItems(items) {
     const container = document.getElementById('target-container');
     container.innerHTML = '';
@@ -400,7 +395,8 @@ async function doUpgrade() {
     
     wheel.style.transform = 'rotate(0deg)';
     
-    // ★ ФИКС: Даем браузеру 100мс на отрисовку колеса, потом крутим ★
+    // ★ ФИКС: Заставляем браузер перерисовать колесо перед анимацией ★
+    wheel.offsetHeight; 
     await new Promise(r => setTimeout(r, 100));
     
     window.playSpin();
