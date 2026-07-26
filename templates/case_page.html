@@ -7,7 +7,6 @@
         <h2>{{ case.name }}</h2>
         <p style="font-size: 18px; color: #e94560;">Цена: {{ case.price }} монет</p>
         
-        <!-- Выбор количества лент -->
         <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 15px; flex-wrap: wrap;">
             <span style="color: #aaa; line-height: 36px; font-size: 14px;">Количество:</span>
             <button class="btn" style="font-size: 13px; padding: 6px 14px;" onclick="setBatchSize(1)">x1</button>
@@ -90,7 +89,6 @@ async function openCase(caseType) {
 
     currentDropItemIds = [];
 
-    // ★ ФИКС: Жестко очищаем контейнер перед отрисовкой ★
     resultDiv.innerHTML = ''; 
     resultDiv.innerHTML = `<div style="overflow: hidden; width: 100%; margin: 15px 0;"><div class="loader-ring"></div></div>`;
     
@@ -143,8 +141,13 @@ async function openCase(caseType) {
     
     html += '</div>';
     
-    // ★ ФИКС: Сначала вставляем HTML, даем браузеру 50мс на отрисовку, потом крутим ★
     resultDiv.innerHTML = html;
+    
+    // ★ ФИКС: Заставляем браузер перерисовать элементы перед запуском анимации ★
+    document.querySelectorAll('.slot-machine-0, .slot-machine-1, .slot-machine-2, .slot-machine-3, .slot-machine-4').forEach(el => {
+        if(el) el.offsetHeight; 
+    });
+
     await new Promise(r => setTimeout(r, 50)); 
     
     window.playSpin();
@@ -268,7 +271,6 @@ async function openCase(caseType) {
         `;
     }
     
-    // ★ ФИКС: Сбрасываем лоадер и отображаем результат ★
     resultDiv.innerHTML = resultHtml;
     
     if (successfulItems.length > 0) {
