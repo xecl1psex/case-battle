@@ -250,6 +250,7 @@
         }
         .btn-green { background: linear-gradient(135deg, #2a9a2a, #1a7a1a); }
         .btn-gold { background: linear-gradient(135deg, #e98a2a, #c97a1a); }
+        .btn-danger { background: linear-gradient(135deg, #e94560, #c73652); }
         
         .profile-stats { 
             display: grid; 
@@ -403,6 +404,46 @@
             text-overflow: ellipsis;
         }
         
+        /* НАСТРОЙКИ В ПРОФИЛЕ */
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .settings-row:last-child { border-bottom: none; }
+        .settings-row .label { font-size: 14px; font-weight: 500; }
+        .settings-row .desc { font-size: 12px; color: #8899aa; }
+        
+        /* Переключатель */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #444;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #e94560; }
+        input:checked + .slider:before { transform: translateX(24px); }
+        
         @media (max-width: 1024px) {
             .sidebar-feed { display: none; }
             .content-wrapper { padding: 0; }
@@ -414,7 +455,7 @@
         <h1><span class="logo-accent">CASE</span>BATTLE</h1>
         <div class="balance-area">
             <div class="balance">💰 <span id="balance-display">{{ balance }}</span></div>
-            <button class="btn-deposit" onclick="openDepositModal(); window.playCoin();">Пополнить</button>
+            <button class="btn-deposit" onclick="openDepositModal()">Пополнить</button>
         </div>
     </div>
     
@@ -530,7 +571,7 @@
 
             if (data.success) {
                 document.getElementById('balance-display').innerText = data.balance;
-                window.playCoin(); // Звук монет
+                playSound('coin');
                 alert(`✅ Баланс пополнен на ${amount} монет!`);
                 closeDepositModal();
             } else {
@@ -554,92 +595,106 @@
         // Запускаем обновление каждые 5 секунд
         setInterval(refreshDropFeed, 5000);
 
-
-        // ★ ========== ГЛОБАЛЬНЫЙ ЗВУКОВОЙ ДВИЖОК (Web Audio API) ========== ★
+        // ★ ========== НАСТРОЙКА ЗВУКА (ГЛОБАЛЬНЫЙ ВЫКЛЮЧАТЕЛЬ) ========== ★
         let audioCtx = null;
+        let isSoundEnabled = true;
+
+        // Загружаем настройку из localStorage
+        try {
+            const savedSound = localStorage.getItem('casebattle_sound_enabled');
+            if (savedSound !== null) {
+                isSoundEnabled = savedSound === 'true';
+            }
+        } catch(e) {}
 
         function initAudio() {
             if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) {}
             }
-            if (audioCtx.state === 'suspended') {
+            if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
         }
 
-        // Звук вращения слота (приятные тикающие тона)
-        window.playSpin = function() {
+        function playSound(type) {
+            if (!isSoundEnabled) return; // Если звук выключен, выходим
             initAudio();
+            if (!audioCtx) return;
+
             const now = audioCtx.currentTime;
-            for (let i = 0; i < 20; i++) {
+
+            if (type === 'spin') {
+                for (let i = 0; i < 20; i++) {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    const t = now + (i / 20) * 1.5;
+                    osc.frequency.value = 200 + (i * 20);
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.08, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+                    osc.start(t);
+                    osc.stop(t + 0.08);
+                }
+            } else if (type === 'success') {
+                const notes = [523.25, 659.25, 783.99];
+                notes.forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.value = freq;
+                    osc.type = 'triangle';
+                    const t = now + i * 0.12;
+                    gain.gain.setValueAtTime(0.15, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+                    osc.start(t);
+                    osc.stop(t + 0.3);
+                });
+            } else if (type === 'fail') {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
-                const t = now + (i / 20) * 1.5;
-                osc.frequency.value = 200 + (i * 20);
-                osc.type = 'sine';
-                gain.gain.setValueAtTime(0.08, t);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-                osc.start(t);
-                osc.stop(t + 0.08);
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.5);
+                osc.type = 'sawtooth';
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (type === 'coin') {
+                [800, 1200].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.value = freq;
+                    osc.type = 'sine';
+                    const t = now + i * 0.05;
+                    gain.gain.setValueAtTime(0.1, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+                    osc.start(t);
+                    osc.stop(t + 0.15);
+                });
             }
-        };
+        }
 
-        // Звук победы (мелодичный восходящий аккорд)
-        window.playSuccess = function() {
-            initAudio();
-            const now = audioCtx.currentTime;
-            const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
-            notes.forEach((freq, i) => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.frequency.value = freq;
-                osc.type = 'triangle';
-                const t = now + i * 0.12;
-                gain.gain.setValueAtTime(0.15, t);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-                osc.start(t);
-                osc.stop(t + 0.3);
-            });
-        };
+        // Заменяем старые функции на новые, чтобы они использовали playSound
+        window.playSpin = function() { playSound('spin'); };
+        window.playSuccess = function() { playSound('success'); };
+        window.playFail = function() { playSound('fail'); };
+        window.playCoin = function() { playSound('coin'); };
 
-        // Звук поражения (низкий нисходящий звук)
-        window.playFail = function() {
-            initAudio();
-            const now = audioCtx.currentTime;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.frequency.setValueAtTime(400, now);
-            osc.frequency.exponentialRampToValueAtTime(100, now + 0.5);
-            osc.type = 'sawtooth';
-            gain.gain.setValueAtTime(0.1, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-            osc.start(now);
-            osc.stop(now + 0.5);
-        };
-
-        // Звук монет (короткий звон)
-        window.playCoin = function() {
-            initAudio();
-            const now = audioCtx.currentTime;
-            [800, 1200].forEach((freq, i) => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.frequency.value = freq;
-                osc.type = 'sine';
-                const t = now + i * 0.05;
-                gain.gain.setValueAtTime(0.1, t);
-                gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-                osc.start(t);
-                osc.stop(t + 0.15);
-            });
+        // Функция переключения звука (будет вызываться из настроек)
+        window.toggleSound = function(enabled) {
+            isSoundEnabled = enabled;
+            try {
+                localStorage.setItem('casebattle_sound_enabled', enabled);
+            } catch(e) {}
         };
     </script>
 </body>
