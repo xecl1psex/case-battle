@@ -3,119 +3,237 @@
 {% block content %}
 <h2 style="margin-bottom: 30px; font-size: 32px;">👤 Профиль</h2>
 
-<div class="profile-stats">
-    <div class="stat-card">
-        <div class="number">{{ stats.opened }}</div>
-        <div class="label">Кейсов открыто</div>
+<!-- Табы (Вкладки) -->
+<div style="display: flex; gap: 0; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+    <div id="tab-stats" onclick="switchTab('stats')" style="padding: 10px 20px; cursor: pointer; border-bottom: 2px solid #e94560; color: #fff; font-weight: 600; transition: 0.3s;">
+        📊 Статистика
     </div>
-    <div class="stat-card">
-        <div class="number">{{ stats.spent }}</div>
-        <div class="label">Потрачено монет</div>
-    </div>
-    <div class="stat-card">
-        <div class="number">{{ stats.won }}</div>
-        <div class="label">Выиграно монет</div>
-    </div>
-    <div class="stat-card">
-        <!-- ★ ИСПРАВЛЕНИЕ: обрезаем ROI до 2 знаков ★ -->
-        <div class="number">{{ "%.2f"|format((stats.won / stats.spent * 100) if stats.spent > 0 else 0) }}%</div>
-        <div class="label">ROI (возврат)</div>
+    <div id="tab-settings" onclick="switchTab('settings')" style="padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; color: #8899aa; font-weight: 600; transition: 0.3s;">
+        ⚙️ Настройки
     </div>
 </div>
 
-<!-- СТАТИСТИКА ИНВЕНТАРЯ -->
-<div class="profile-stats" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
-    <div class="stat-card" style="border-color: rgba(78, 154, 6, 0.4);">
-        <div class="number" style="color: #4e9a06;">{{ inventory|length }}</div>
-        <div class="label">Всего предметов</div>
-    </div>
-    <div class="stat-card" style="border-color: rgba(255, 215, 0, 0.4);">
-        <div class="number" style="color: #ffd700;">
-            {% set total_val = namespace(sum=0) %}
-            {% for item in inventory %}
-                {% set total_val.sum = total_val.sum + item.price %}
-            {% endfor %}
-            {{ total_val.sum }}
+<!-- Блок СТАТИСТИКА -->
+<div id="content-stats" style="display: block;">
+    <div class="profile-stats">
+        <div class="stat-card">
+            <div class="number">{{ stats.opened }}</div>
+            <div class="label">Кейсов открыто</div>
         </div>
-        <div class="label">Общая стоимость</div>
-    </div>
-    <div class="stat-card" style="border-color: rgba(233, 69, 96, 0.4);">
-        <div class="number" style="color: #e94560;">
-            {% set max_item = namespace(price=0, name="—") %}
-            {% for item in inventory %}
-                {% if item.price > max_item.price %}
-                    {% set max_item.price = item.price %}
-                    {% set max_item.name = item.name %}
-                {% endif %}
-            {% endfor %}
-            {{ max_item.price }}
+        <div class="stat-card">
+            <div class="number">{{ stats.spent }}</div>
+            <div class="label">Потрачено монет</div>
         </div>
-        <div class="label">Самый дорогой</div>
-    </div>
-    <div class="stat-card" style="border-color: rgba(179, 58, 255, 0.4);">
-        <!-- ★ ИСПРАВЛЕНИЕ: обрезаем среднюю цену до 2 знаков ★ -->
-        <div class="number" style="color: #b03aff;">
-            {% set total_val = namespace(sum=0) %}
-            {% for item in inventory %}
-                {% set total_val.sum = total_val.sum + item.price %}
-            {% endfor %}
-            {{ "%.2f"|format((total_val.sum / inventory|length) if inventory|length > 0 else 0) }}
+        <div class="stat-card">
+            <div class="number">{{ stats.won }}</div>
+            <div class="label">Выиграно монет</div>
         </div>
-        <div class="label">Средняя цена</div>
+        <div class="stat-card">
+            <div class="number">{{ "%.2f"|format((stats.won / stats.spent * 100) if stats.spent > 0 else 0) }}%</div>
+            <div class="label">ROI (возврат)</div>
+        </div>
     </div>
-    <div class="stat-card" style="border-color: rgba(243, 156, 18, 0.4);">
-        <div class="number" style="color: #f39c12;">{{ stats.upgrades|default(0) }}</div>
-        <div class="label">Апгрейдов</div>
-    </div>
-    <div class="stat-card" style="border-color: rgba(78, 154, 6, 0.4);">
-        <div class="number" style="color: #4e9a06;">{{ stats.contracts|default(0) }}</div>
-        <div class="label">Контрактов</div>
-    </div>
-</div>
 
-<!-- ИНВЕНТАРЬ -->
-<div class="card" style="background: #1a1a2e; padding: 30px; border-radius: 16px; border: 1px solid #0f3460;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div>
-            <h3>🎒 Твой инвентарь</h3>
-            <div style="font-size: 12px; color: #8899aa; margin-top: 4px;">
-                {{ stats.display_name }} 
-                {% if stats.last_seen and (now - stats.last_seen) < 300 %}
-                <span style="display: inline-block; width: 10px; height: 10px; background: #2a9a2a; border-radius: 50%;"></span>
-                {% else %}
-                <span style="display: inline-block; width: 10px; height: 10px; background: #666; border-radius: 50%;"></span>
-                {% endif %}
+    <!-- СТАТИСТИКА ИНВЕНТАРЯ -->
+    <div class="profile-stats" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+        <div class="stat-card" style="border-color: rgba(78, 154, 6, 0.4);">
+            <div class="number" style="color: #4e9a06;">{{ inventory|length }}</div>
+            <div class="label">Всего предметов</div>
+        </div>
+        <div class="stat-card" style="border-color: rgba(255, 215, 0, 0.4);">
+            <div class="number" style="color: #ffd700;">
+                {% set total_val = namespace(sum=0) %}
+                {% for item in inventory %}
+                    {% set total_val.sum = total_val.sum + item.price %}
+                {% endfor %}
+                {{ total_val.sum }}
             </div>
+            <div class="label">Общая стоимость</div>
         </div>
+        <div class="stat-card" style="border-color: rgba(233, 69, 96, 0.4);">
+            <div class="number" style="color: #e94560;">
+                {% set max_item = namespace(price=0, name="—") %}
+                {% for item in inventory %}
+                    {% if item.price > max_item.price %}
+                        {% set max_item.price = item.price %}
+                        {% set max_item.name = item.name %}
+                    {% endif %}
+                {% endfor %}
+                {{ max_item.price }}
+            </div>
+            <div class="label">Самый дорогой</div>
+        </div>
+        <div class="stat-card" style="border-color: rgba(179, 58, 255, 0.4);">
+            <div class="number" style="color: #b03aff;">
+                {% set total_val = namespace(sum=0) %}
+                {% for item in inventory %}
+                    {% set total_val.sum = total_val.sum + item.price %}
+                {% endfor %}
+                {{ "%.2f"|format((total_val.sum / inventory|length) if inventory|length > 0 else 0) }}
+            </div>
+            <div class="label">Средняя цена</div>
+        </div>
+        <div class="stat-card" style="border-color: rgba(243, 156, 18, 0.4);">
+            <div class="number" style="color: #f39c12;">{{ stats.upgrades|default(0) }}</div>
+            <div class="label">Апгрейдов</div>
+        </div>
+        <div class="stat-card" style="border-color: rgba(78, 154, 6, 0.4);">
+            <div class="number" style="color: #4e9a06;">{{ stats.contracts|default(0) }}</div>
+            <div class="label">Контрактов</div>
+        </div>
+    </div>
+
+    <!-- ИНВЕНТАРЬ -->
+    <div class="card" style="background: #1a1a2e; padding: 30px; border-radius: 16px; border: 1px solid #0f3460;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+                <h3>🎒 Твой инвентарь</h3>
+                <div style="font-size: 12px; color: #8899aa; margin-top: 4px;">
+                    {{ stats.display_name }} 
+                    {% if stats.last_seen and (now - stats.last_seen) < 300 %}
+                    <span style="display: inline-block; width: 10px; height: 10px; background: #2a9a2a; border-radius: 50%;"></span>
+                    {% else %}
+                    <span style="display: inline-block; width: 10px; height: 10px; background: #666; border-radius: 50%;"></span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if inventory %}
+            <button class="btn" style="background: #e94560; font-size: 14px; padding: 8px 20px;" onclick="openSellAllModal()">
+                💰 Продать всё
+            </button>
+            {% endif %}
+        </div>
+        
         {% if inventory %}
-        <button class="btn" style="background: #e94560; font-size: 14px; padding: 8px 20px;" onclick="openSellAllModal()">
-            💰 Продать всё
-        </button>
+        <div class="item-grid">
+            {% for item in inventory %}
+            <div class="item-card" style="border-color: {{ RARITY_COLORS[item.rarity] if item.rarity in RARITY_COLORS else '#0f3460' }};">
+                <img src="{{ item.image }}" alt="{{ item.name }}" style="width: 80px; height: 80px; object-fit: contain;">
+                <div class="name">{{ item.name }}</div>
+                <div class="price" style="color: {{ RARITY_COLORS[item.rarity] if item.rarity in RARITY_COLORS else '#e94560' }};">{{ item.price }} монет</div>
+                <div class="rarity" style="background: {{ RARITY_COLORS[item.rarity] if item.rarity in RARITY_COLORS else '#4a4a4a' }}; color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 4px; display: inline-block;">
+                    {{ RARITY_NAMES[item.rarity] if item.rarity in RARITY_NAMES else item.rarity }}
+                </div>
+                <button class="btn" style="font-size: 12px; padding: 6px 12px; margin-top: 10px;" onclick="sellItem({{ item.id }})">
+                    💰 Продать
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color: #888;">У тебя пока нет скинов. Открой кейс!</p>
         {% endif %}
     </div>
-    
-    {% if inventory %}
-    <div class="item-grid">
-        {% for item in inventory %}
-        <div class="item-card" style="border-color: {{ RARITY_COLORS[item.rarity] if item.rarity in RARITY_COLORS else '#0f3460' }};">
-            <img src="{{ item.image }}" alt="{{ item.name }}" style="width: 80px; height: 80px; object-fit: contain;">
-            <div class="name">{{ item.name }}</div>
-            <div class="price" style="color: {{ RARITY_COLORS[item.rarity] if item.rarity in RARITY_COLORS else '#e94560' }};">{{ item.price }} монет</div>
-            <div class="rarity" style="background: {{ RARITY_COLORS[item.rarity] if item.rarity in RARITY_COLORS else '#4a4a4a' }}; color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 4px; display: inline-block;">
-                {{ RARITY_NAMES[item.rarity] if item.rarity in RARITY_NAMES else item.rarity }}
+</div>
+
+<!-- Блок НАСТРОЙКИ -->
+<div id="content-settings" style="display: none;">
+    <div class="card" style="background: #1a1a2e; padding: 30px; border-radius: 16px; border: 1px solid #0f3460; max-width: 600px;">
+        
+        <h3 style="margin-bottom: 20px;">⚙️ Настройки игры</h3>
+        
+        <!-- Настройка Звука -->
+        <div class="settings-row">
+            <div>
+                <div class="label">🔊 Звуковые эффекты</div>
+                <div class="desc">Включить или выключить музыку и звуки в игре.</div>
             </div>
-            <button class="btn" style="font-size: 12px; padding: 6px 12px; margin-top: 10px;" onclick="sellItem({{ item.id }})">
-                💰 Продать
-            </button>
+            <label class="switch">
+                <input type="checkbox" id="soundToggle" checked onchange="toggleGlobalSound()">
+                <span class="slider"></span>
+            </label>
         </div>
-        {% endfor %}
+
+        <!-- Сброс прогресса -->
+        <div class="settings-row" style="border-bottom: none; margin-top: 10px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.04);">
+            <div>
+                <div class="label" style="color: #e94560;">⚠️ Опасная зона</div>
+                <div class="desc">Полностью удалить весь инвентарь, обнулить статистику и сбросить баланс до 1000 монет.</div>
+            </div>
+            <button class="btn btn-danger" style="padding: 6px 12px; font-size: 13px;" onclick="openResetModal()">Сбросить</button>
+        </div>
+
     </div>
-    {% else %}
-    <p style="color: #888;">У тебя пока нет скинов. Открой кейс!</p>
-    {% endif %}
+</div>
+
+<!-- Модалка для подтверждения сброса -->
+<div id="resetModal" class="modal">
+    <div class="modal-content">
+        <h2 style="color: #e94560;">⚠️ Подтверждение</h2>
+        <p style="color: #aaa; margin-bottom: 15px; font-size: 14px;">
+            Ты уверен, что хочешь сбросить весь прогресс? <br>
+            <strong>Это действие необратимо!</strong>
+        </p>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+            <button class="btn btn-danger" onclick="executeReset()" style="flex: 1;">✅ Да, сбросить!</button>
+            <button class="btn" style="background: #555; flex: 1;" onclick="closeResetModal()">❌ Отмена</button>
+        </div>
+    </div>
 </div>
 
 <script>
+// ===== ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК =====
+function switchTab(tabName) {
+    // Скрываем оба блока
+    document.getElementById('content-stats').style.display = 'none';
+    document.getElementById('content-settings').style.display = 'none';
+    
+    // Убираем активный стиль с табов
+    document.getElementById('tab-stats').style.borderBottomColor = 'transparent';
+    document.getElementById('tab-stats').style.color = '#8899aa';
+    document.getElementById('tab-settings').style.borderBottomColor = 'transparent';
+    document.getElementById('tab-settings').style.color = '#8899aa';
+    
+    // Показываем нужный блок и красим таб
+    if (tabName === 'stats') {
+        document.getElementById('content-stats').style.display = 'block';
+        document.getElementById('tab-stats').style.borderBottomColor = '#e94560';
+        document.getElementById('tab-stats').style.color = '#fff';
+    } else if (tabName === 'settings') {
+        document.getElementById('content-settings').style.display = 'block';
+        document.getElementById('tab-settings').style.borderBottomColor = '#e94560';
+        document.getElementById('tab-settings').style.color = '#fff';
+        
+        // Устанавливаем состояние чекбокса звука при открытии настроек
+        const savedSound = localStorage.getItem('casebattle_sound_enabled');
+        document.getElementById('soundToggle').checked = savedSound !== 'false'; 
+    }
+}
+
+// ===== ПЕРЕКЛЮЧАТЕЛЬ ЗВУКА =====
+function toggleGlobalSound() {
+    const isChecked = document.getElementById('soundToggle').checked;
+    window.toggleSound(isChecked);
+}
+
+// ===== СБРОС АККАУНТА =====
+function openResetModal() {
+    document.getElementById('resetModal').style.display = 'flex';
+}
+
+function closeResetModal() {
+    document.getElementById('resetModal').style.display = 'none';
+}
+
+async function executeReset() {
+    closeResetModal();
+    
+    const response = await fetch('/api/reset_account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+        document.getElementById('balance-display').innerText = data.balance;
+        alert('✅ Аккаунт успешно сброшен! Выдано 1000 монет.');
+        location.reload();
+    } else {
+        alert('❌ Ошибка сброса: ' + data.message);
+    }
+}
+
+// ===== ОСТАЛЬНОЙ КОД =====
 async function sellItem(itemId) {
     if (!confirm('Ты уверен, что хочешь продать этот скин?')) return;
     
@@ -128,6 +246,7 @@ async function sellItem(itemId) {
     const data = await response.json();
     
     if (data.success) {
+        window.playCoin();
         alert(`✅ Скин продан за ${data.price} монет!`);
         document.getElementById('balance-display').innerText = data.balance;
         location.reload();
@@ -172,6 +291,7 @@ async function executeSellAll() {
     const data = await response.json();
     
     if (data.success) {
+        window.playCoin();
         alert(`✅ Все предметы проданы! Ты получил ${data.total} монет!`);
         document.getElementById('balance-display').innerText = data.balance;
         location.reload();
@@ -180,4 +300,14 @@ async function executeSellAll() {
     }
 }
 </script>
+
+<style>
+.card {
+    background: rgba(20, 35, 50, 0.4);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    margin-bottom: 20px;
+}
+</style>
 {% endblock %}
