@@ -84,25 +84,32 @@
             overflow-x: auto;
         }
         .nav::-webkit-scrollbar { display: none; }
+        
+        /* ===== ОБНОВЛЕННЫЙ CSS ДЛЯ КНОПОК МЕНЮ ===== */
         .nav a { 
+            position: relative;
             color: #8899aa; 
             text-decoration: none; 
             font-size: 14px; 
             font-weight: 500;
             padding: 6px 16px; 
             border-radius: 20px; 
-            transition: all 0.3s; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             white-space: nowrap;
         }
         .nav a:hover { 
             color: #fff; 
             background: rgba(233, 69, 96, 0.15);
         }
+        
+        /* Активная кнопка (подсветка + анимация) */
         .nav a.active { 
             color: #fff; 
             background: rgba(233, 69, 96, 0.2);
-            box-shadow: inset 0 -2px 0 #e94560;
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.1), inset 0 -2px 0 #e94560;
+            transform: scale(1.02);
         }
+        
         .nav .logout-btn {
             margin-left: auto;
             color: #8899aa;
@@ -459,12 +466,13 @@
         </div>
     </div>
     
+    <!-- ★ ИЗМЕНЕНО: Меню теперь динамическое. Добавлена анимация ★ -->
     <div class="nav">
-        <a href="/" class="active">Главная</a>
-        <a href="/cases">Кейсы</a>
-        <a href="/upgrade">Апгрейд</a>
-        <a href="/contracts">Контракты</a>
-        <a href="/profile">Профиль</a>
+        <a href="/" class="{% if page == 'home' %}active{% endif %}">Главная</a>
+        <a href="/cases" class="{% if page == 'cases' %}active{% endif %}">Кейсы</a>
+        <a href="/upgrade" class="{% if page == 'upgrade' %}active{% endif %}">Апгрейд</a>
+        <a href="/contracts" class="{% if page == 'contracts' %}active{% endif %}">Контракты</a>
+        <a href="/profile" class="{% if page == 'profile' %}active{% endif %}">Профиль</a>
         <a href="/logout" class="logout-btn">Выход</a>
     </div>
     
@@ -489,7 +497,6 @@
                 {% endif %}
             </div>
 
-            <!-- ★ ЛЕНТА ДРОПА В ОТДЕЛЬНОМ БЛОКЕ ДЛЯ ОБНОВЛЕНИЯ ★ -->
             <div id="drop-feed-container">
                 <div class="feed-header" style="border-top: 1px solid rgba(255,255,255,0.04); border-radius: 0;">
                     🎁 У НАС ВЫИГРЫВАЮТ
@@ -579,123 +586,7 @@
             }
         }
 
-        // ★ СКРИПТ ДЛЯ АВТОМАТИЧЕСКОГО ОБНОВЛЕНИЯ ЛЕНТЫ ДРОПА ★
         async function refreshDropFeed() {
             try {
                 const response = await fetch('/api/drop_feed_json');
-                const data = await response.json();
-                if (data.success && data.html) {
-                    document.getElementById('drop-feed-content').innerHTML = data.html;
-                }
-            } catch (error) {
-                console.error('Ошибка обновления ленты:', error);
-            }
-        }
-
-        // Запускаем обновление каждые 5 секунд
-        setInterval(refreshDropFeed, 5000);
-
-        // ★ ========== НАСТРОЙКА ЗВУКА (ГЛОБАЛЬНЫЙ ВЫКЛЮЧАТЕЛЬ) ========== ★
-        let audioCtx = null;
-        let isSoundEnabled = true;
-
-        // Загружаем настройку из localStorage
-        try {
-            const savedSound = localStorage.getItem('casebattle_sound_enabled');
-            if (savedSound !== null) {
-                isSoundEnabled = savedSound === 'true';
-            }
-        } catch(e) {}
-
-        function initAudio() {
-            if (!audioCtx) {
-                try {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                } catch(e) {}
-            }
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
-
-        function playSound(type) {
-            if (!isSoundEnabled) return; // Если звук выключен, выходим
-            initAudio();
-            if (!audioCtx) return;
-
-            const now = audioCtx.currentTime;
-
-            if (type === 'spin') {
-                for (let i = 0; i < 20; i++) {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    const t = now + (i / 20) * 1.5;
-                    osc.frequency.value = 200 + (i * 20);
-                    osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.08, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
-                    osc.start(t);
-                    osc.stop(t + 0.08);
-                }
-            } else if (type === 'success') {
-                const notes = [523.25, 659.25, 783.99];
-                notes.forEach((freq, i) => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.frequency.value = freq;
-                    osc.type = 'triangle';
-                    const t = now + i * 0.12;
-                    gain.gain.setValueAtTime(0.15, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-                    osc.start(t);
-                    osc.stop(t + 0.3);
-                });
-            } else if (type === 'fail') {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.frequency.setValueAtTime(400, now);
-                osc.frequency.exponentialRampToValueAtTime(100, now + 0.5);
-                osc.type = 'sawtooth';
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                osc.start(now);
-                osc.stop(now + 0.5);
-            } else if (type === 'coin') {
-                [800, 1200].forEach((freq, i) => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.frequency.value = freq;
-                    osc.type = 'sine';
-                    const t = now + i * 0.05;
-                    gain.gain.setValueAtTime(0.1, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-                    osc.start(t);
-                    osc.stop(t + 0.15);
-                });
-            }
-        }
-
-        // Заменяем старые функции на новые, чтобы они использовали playSound
-        window.playSpin = function() { playSound('spin'); };
-        window.playSuccess = function() { playSound('success'); };
-        window.playFail = function() { playSound('fail'); };
-        window.playCoin = function() { playSound('coin'); };
-
-        // Функция переключения звука (будет вызываться из настроек)
-        window.toggleSound = function(enabled) {
-            isSoundEnabled = enabled;
-            try {
-                localStorage.setItem('casebattle_sound_enabled', enabled);
-            } catch(e) {}
-        };
-    </script>
-</body>
-</html>
+                const
