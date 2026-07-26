@@ -27,7 +27,15 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_fallback_key_for_local_dev')
 db_lock = threading.Lock()
 
-# ★ ГЛАВНОЕ ИСПРАВЛЕНИЕ: Инициализируем БД ПРИ ЗАПУСКЕ ПРИЛОЖЕНИЯ ★
+# ★ ЗАПРЕТ КЕШИРОВАНИЯ ДЛЯ БРАУЗЕРА ★
+@app.after_request
+def add_no_cache_headers(response):
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+# ★ ИНИЦИАЛИЗАЦИЯ БД ПРИ ЗАПУСКЕ ★
 database.init_db()
 
 @app.before_request
@@ -534,15 +542,11 @@ def upgrade_item():
             database.remove_item(user_id, item['id'])
         database.add_item(user_id, f"{target_item['name']} (Апгрейд)", target_price, target_item['rarity'], target_item.get('image', ''))
         message = f"✅ Успех! Ты получил {target_item['name']}!"
-        
-        # Учет статистики для апгрейда
         database.update_stats(user_id, spent_add=current_price, won_add=target_price, upgrade_add=1)
     else:
         for item in source_items:
             database.remove_item(user_id, item['id'])
         message = f"💥 Апгрейд провалился! Все выбранные скины сгорели."
-        
-        # Учет статистики для апгрейда
         database.update_stats(user_id, spent_add=current_price, won_add=0, upgrade_add=1)
     
     return jsonify({
@@ -674,6 +678,38 @@ def contract():
         "inventory": database.get_inventory(user_id)
     })
 
+# ===== ДОБАВЛЕНО: API ДЛЯ СБРОСА АККАУНТА =====
+@app.route('/api/reset_account', methods=['POST'])
+def reset_account():
+    if 'user_id' not in session:
+        return jsonify({"success": False, "message": "Не авторизован"})
+    
+    user_id = session['user_id']
+    
+    # 1. Получаем инвентарь и удаляем его
+    inventory = database.get_inventory(user_id)
+    for item in inventory:
+        database.remove_item(user_id, item['id'])
+    
+    # 2. Сбрасываем баланс до 1000
+    user_data = database.get_user_data(user_id)
+    current_balance = user_data['balance']
+    database.update_balance(user_id, -current_balance) # Обнуляем текущий баланс
+    database.update_balance(user_id, 1000) # Выдаем стартовые 1000
+    
+    # 3. Сбрасываем всю статистику
+    conn = sqlite3.connect('game.db')
+    c = conn.cursor()
+    c.execute("UPDATE users SET total_spent = 0, total_won = 0, cases_opened = 0, total_upgrades = 0, total_contracts = 0 WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        "success": True,
+        "message": "Аккаунт успешно сброшен. Выдано 1000 монет!",
+        "balance": 1000
+    })
+
 # ---- API (ОБНОВЛЕНИЕ ЛЕНТЫ ДРОПА В РЕАЛЬНОМ ВРЕМЕНИ) ----
 @app.route('/api/drop_feed_json', methods=['GET'])
 def drop_feed_json():
@@ -699,5 +735,4 @@ def drop_feed_json():
     return jsonify({"success": True, "html": html})
 
 if __name__ == '__main__':
-    # database.init_db() здесь больше НЕ НУЖНО вызывать, мы вызвали его глобально
     app.run(debug=True)
