@@ -78,7 +78,7 @@
                 <span style="color: #e94560;">❌ Неудача: <span id="fail-label">100.00%</span></span>
             </div>
 
-            <!-- КНОПКИ МНОЖИТЕЛЕЙ (ТЕПЕРЬ ОНИ ЕЩЁ И ФИЛЬТРУЮТ ДИАПАЗОН) -->
+            <!-- КНОПКИ МНОЖИТЕЛЕЙ -->
             <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
                 <button class="btn" style="padding: 4px 12px; font-size: 12px; background: #2a7a2a;" onclick="suggestTarget(1.5)">x1.5</button>
                 <button class="btn" style="padding: 4px 12px; font-size: 12px; background: #e98a2a;" onclick="suggestTarget(2)">x2</button>
@@ -189,10 +189,10 @@ function toggleSource(itemId, name, price, image) {
     if (targetItem) updateWheel();
 }
 
-// ===== ПРАВАЯ СТОРОНА: ДИНАМИЧЕСКАЯ ОТРИСОВКА =====
+// ===== ПРАВАЯ СТОРОНА =====
 function renderTargetItems(items) {
     const container = document.getElementById('target-container');
-    container.innerHTML = ''; // Очистить список
+    container.innerHTML = '';
 
     items.forEach(skin => {
         const card = document.createElement('div');
@@ -218,12 +218,10 @@ function renderTargetItems(items) {
             <div style="font-size: 12px; color: ${rarityColors[skin.rarity] || '#e94560'};">${skin.price} монет</div>
         `;
 
-        // Обработчик клика
         card.addEventListener('click', function() {
             selectTarget(skin.name, skin.price, skin.image, skin.rarity);
         });
 
-        // Если это текущая выбранная цель, подсветить красной рамкой
         if (targetItem && targetItem.name === skin.name && targetItem.price === skin.price) {
             card.style.borderColor = '#e94560';
         }
@@ -239,14 +237,12 @@ function applySortTarget() {
     const fromPrice = parseFloat(document.getElementById('price-from').value) || 0;
     const toPrice = parseFloat(document.getElementById('price-to').value) || Infinity;
     
-    // Фильтрация данных
     let filteredItems = allSkinsData.filter(item => {
         const minPrice = Math.min(fromPrice, toPrice);
         const maxPrice = Math.max(fromPrice, toPrice);
         return item.price >= minPrice && item.price <= maxPrice;
     });
 
-    // Сортировка данных
     if (sortValue === 'price-asc') {
         filteredItems.sort((a, b) => a.price - b.price);
     } else if (sortValue === 'price-desc') {
@@ -260,7 +256,6 @@ function applySortTarget() {
     renderTargetItems(filteredItems);
 }
 
-// ===== ВЫБОР ЦЕЛИ =====
 function selectTarget(name, price, image, rarity) {
     document.querySelectorAll('.target-item').forEach(el => {
         el.style.borderColor = 'rgba(255,255,255,0.04)';
@@ -283,7 +278,6 @@ function selectTarget(name, price, image, rarity) {
     updateWheel();
 }
 
-// ===== ★ ОБНОВЛЕННАЯ ЛОГИКА: ЗАПОЛНЕНИЕ ФИЛЬТРОВ И АВТО-ВЫБОР ★ =====
 function suggestTarget(multiplier) {
     const resultDiv = document.getElementById('upgrade-result');
     
@@ -295,26 +289,21 @@ function suggestTarget(multiplier) {
     const totalSourcePrice = selectedSources.reduce((sum, s) => sum + s.price, 0);
     const targetPrice = totalSourcePrice * multiplier;
 
-    // 1. Заполняем поля фильтрации "От" и "До"
-    // Формула: От = targetPrice * 0.4, До = targetPrice * 0.8 
-    // (Пример: 500 * 5 = 2500. От 1000, До 2000)
     const fromVal = Math.floor(targetPrice * 0.4);
     const toVal = Math.ceil(targetPrice * 0.8);
     
     document.getElementById('price-from').value = fromVal;
     document.getElementById('price-to').value = toVal;
     
-    // 2. Обновляем список скинов с применением нового фильтра
     applySortTarget();
     
-    // 3. Автоматически выбираем самый близкий по цене скин в этом диапазоне
     const items = document.querySelectorAll('#target-container .target-item');
     let bestItem = null;
     let bestDiff = Infinity;
     
     items.forEach(el => {
         const price = parseFloat(el.getAttribute('data-price'));
-        if (price > totalSourcePrice) { // Обязательно дороже того, что мы отдаем
+        if (price > totalSourcePrice) {
             const diff = Math.abs(price - targetPrice);
             if (diff < bestDiff) {
                 bestDiff = diff;
@@ -325,7 +314,7 @@ function suggestTarget(multiplier) {
     
     if (bestItem) {
         resultDiv.innerHTML = '';
-        bestItem.click(); // Программный клик для выбора идеального скина
+        bestItem.click();
     } else {
         resultDiv.innerHTML = `
             <div style="color: #e94560; font-size: 16px;">
@@ -335,7 +324,6 @@ function suggestTarget(multiplier) {
     }
 }
 
-// ===== ОБНОВЛЕНИЕ КОЛЕСА =====
 function updateWheel() {
     if (selectedSources.length > 0 && targetItem) {
         const totalPrice = selectedSources.reduce((sum, s) => sum + s.price, 0);
@@ -360,7 +348,6 @@ function updateWheel() {
     }
 }
 
-// ===== ОСНОВНОЙ АПГРЕЙД =====
 async function doUpgrade() {
     if (selectedSources.length === 0 || !targetItem) return;
     
@@ -412,7 +399,9 @@ async function doUpgrade() {
     const targetAngle = (targetRoll / 100) * 360 + (360 * 5);
     
     wheel.style.transform = 'rotate(0deg)';
-    await new Promise(r => setTimeout(r, 50));
+    
+    // ★ ФИКС: Даем браузеру 100мс на отрисовку колеса, потом крутим ★
+    await new Promise(r => setTimeout(r, 100));
     
     window.playSpin();
 
@@ -436,7 +425,6 @@ async function doUpgrade() {
     setTimeout(() => location.reload(), 3000);
 }
 
-// ===== СОРТИРОВКА ЛЕВОЙ ПАНЕЛИ =====
 function applySort(type) {
     const containerId = type === 'source' ? 'source-container' : 'target-container';
     const container = document.getElementById(containerId);
