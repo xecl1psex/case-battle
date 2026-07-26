@@ -90,10 +90,11 @@ async function openCase(caseType) {
 
     currentDropItemIds = [];
 
-    let html = `<div style="overflow: hidden; width: 100%; margin: 15px 0;"><div class="loader-ring"></div></div>`;
-    resultDiv.innerHTML = html;
+    // ★ ФИКС: Жестко очищаем контейнер перед отрисовкой ★
+    resultDiv.innerHTML = ''; 
+    resultDiv.innerHTML = `<div style="overflow: hidden; width: 100%; margin: 15px 0;"><div class="loader-ring"></div></div>`;
     
-    html = `<div style="overflow: hidden; width: 100%; margin: 15px 0;">`;
+    let html = `<div style="overflow: hidden; width: 100%; margin: 15px 0;">`;
     
     for (let batchIndex = 0; batchIndex < successfulItems.length; batchIndex++) {
         const data = successfulItems[batchIndex];
@@ -142,9 +143,10 @@ async function openCase(caseType) {
     
     html += '</div>';
     
+    // ★ ФИКС: Сначала вставляем HTML, даем браузеру 50мс на отрисовку, потом крутим ★
     resultDiv.innerHTML = html;
+    await new Promise(r => setTimeout(r, 50)); 
     
-    // ★ ЗАПУСКАЕМ ПРИЯТНЫЙ ЗВУК ВРАЩЕНИЯ ★
     window.playSpin();
 
     const animationPromises = [];
@@ -175,12 +177,10 @@ async function openCase(caseType) {
     
     await Promise.all(animationPromises);
     
-    // ★ ПОСЛЕ АНИМАЦИИ, ЕСЛИ ЕСТЬ ХОТЯ БЫ 1 ВЫИГРЫШ, ИГРАЕМ МЕЛОДИЮ ★
     if (successfulItems.length > 0) {
         window.playSuccess();
     }
 
-    // ★ СЧИТАЕМ ОБЩУЮ СТАТИСТИКУ ПО ДРОПУ ★
     let totalBatchValue = 0;
     for (let i = 0; i < successfulItems.length; i++) {
         totalBatchValue += successfulItems[i].item.price;
@@ -189,12 +189,10 @@ async function openCase(caseType) {
     const roiPercent = ((totalBatchValue / totalSpent) * 100).toFixed(1);
     const isBatchProfitable = totalBatchValue >= totalSpent;
 
-    // Сортируем предметы от самого дорогого к самому дешёвому
     const sortedItems = successfulItems.sort((a, b) => b.item.price - a.item.price);
 
     let resultHtml = `
         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
-            <!-- СВОДКА ПО ТРАТАМ -->
             <div style="display: flex; justify-content: center; gap: 20px; padding: 12px; background: rgba(12,18,28,0.6); border-radius: 12px; border: 1px solid rgba(255,255,255,0.04); font-size: 14px; flex-wrap: wrap;">
                 <div>Потрачено: <strong style="color: #e94560;">${totalSpent}</strong> монет</div>
                 <div>Выиграно: <strong style="color: ${isBatchProfitable ? '#4e9a06' : '#8899aa'};">${totalBatchValue}</strong> монет</div>
@@ -219,7 +217,6 @@ async function openCase(caseType) {
         
         const icon = isItemProfitable ? '🔥' : '😕';
         const statusText = isItemProfitable ? 'Окупилось!' : 'Не окупилось';
-        
         const delay = i * 0.1;
 
         resultHtml += `
@@ -271,6 +268,7 @@ async function openCase(caseType) {
         `;
     }
     
+    // ★ ФИКС: Сбрасываем лоадер и отображаем результат ★
     resultDiv.innerHTML = resultHtml;
     
     if (successfulItems.length > 0) {
@@ -291,7 +289,7 @@ async function sellItemAndReload(itemId) {
     });
     const data = await response.json();
     if (data.success) {
-        window.playCoin(); // Звук монет при продаже
+        window.playCoin();
         document.getElementById('balance-display').innerText = data.balance;
         alert(`✅ Скин продан за ${data.price} монет!`);
         location.reload();
