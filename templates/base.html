@@ -457,7 +457,8 @@
     <div class="header">
         <h1><span class="logo-accent">CASE</span>BATTLE</h1>
         <div class="balance-area">
-            <div class="balance">💰 <span id="balance-display">{{ balance }}</span></div>
+            <!-- ★ ИЗМЕНЕНО: Используем фильтр thousands для начального отображения ★ -->
+            <div class="balance">💰 <span id="balance-display">{{ balance | thousands }}</span></div>
             <button class="btn-deposit" onclick="openDepositModal()">Пополнить</button>
         </div>
     </div>
@@ -538,11 +539,18 @@
     </div>
 
     <script>
+        // ★ НОВАЯ ФУНКЦИЯ: Добавляет пробелы между тысячами ★
+        function formatNumber(num) {
+            if (num === undefined || num === null) return "0";
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+        }
+
         function updateBalance() {
             fetch('/api/balance')
                 .then(res => res.json())
                 .then(data => {
-                    document.getElementById('balance-display').innerText = data.balance;
+                    // ★ ИЗМЕНЕНО: Применяем форматирование ★
+                    document.getElementById('balance-display').innerText = formatNumber(data.balance);
                 });
         }
 
@@ -572,9 +580,10 @@
             const data = await response.json();
 
             if (data.success) {
-                document.getElementById('balance-display').innerText = data.balance;
+                // ★ ИЗМЕНЕНО: Применяем форматирование ★
+                document.getElementById('balance-display').innerText = formatNumber(data.balance);
                 playSound('coin');
-                alert(`✅ Баланс пополнен на ${amount} монет!`);
+                alert(`✅ Баланс пополнен на ${formatNumber(amount)} монет!`);
                 closeDepositModal();
             } else {
                 alert('❌ Ошибка пополнения: ' + data.message);
@@ -595,8 +604,7 @@
 
         setInterval(refreshDropFeed, 5000);
 
-
-        // ★ ========== ГЛОБАЛЬНЫЙ ЗВУКОВОЙ ДВИЖОК (Web Audio API) ========== ★
+        // ★ ========== ГЛОБАЛЬНЫЙ ЗВУКОВОЙ ДВИЖОК ========== ★
         let audioCtx = null;
         let isSoundEnabled = true;
 
@@ -607,20 +615,17 @@
             }
         } catch(e) {}
 
-        // ★ ГЛАВНЫЙ ФИКС: Аудио-контекст создаётся и разблокируется ТОЛЬКО при первом клике пользователя ★
         function initAudio() {
             if (!audioCtx) {
                 try {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 } catch(e) {}
             }
-            // Если контекст на паузе (это происходит в браузерах), пробуем его запустить
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
         }
 
-        // ★ Принудительный запуск звука при любом клике по сайту ★
         document.addEventListener('click', function() {
             initAudio();
         }, { once: false });
@@ -628,7 +633,7 @@
         function playSound(type) {
             if (!isSoundEnabled) return;
             initAudio();
-            if (!audioCtx || audioCtx.state !== 'running') return; // Если браузер все ещё блокирует, просто выходим (без краша)
+            if (!audioCtx || audioCtx.state !== 'running') return;
 
             const now = audioCtx.currentTime;
 
