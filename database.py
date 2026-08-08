@@ -6,6 +6,7 @@ def init_db():
     conn = sqlite3.connect('game.db')
     c = conn.cursor()
     
+    # Добавляем новые колонки для статистики по режимам
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY, 
         username TEXT UNIQUE, 
@@ -13,10 +14,20 @@ def init_db():
         display_name TEXT,
         last_seen REAL DEFAULT 0,
         balance REAL DEFAULT 1000, 
+        
         total_spent REAL DEFAULT 0, 
         total_won REAL DEFAULT 0, 
+        
+        spent_cases REAL DEFAULT 0,
+        won_cases REAL DEFAULT 0,
         cases_opened INTEGER DEFAULT 0,
+        
+        spent_upgrades REAL DEFAULT 0,
+        won_upgrades REAL DEFAULT 0,
         total_upgrades INTEGER DEFAULT 0,
+        
+        spent_contracts REAL DEFAULT 0,
+        won_contracts REAL DEFAULT 0,
         total_contracts INTEGER DEFAULT 0
     )''')
     
@@ -37,6 +48,17 @@ def init_db():
         item_price REAL,
         item_image TEXT,
         case_name TEXT,
+        timestamp REAL
+    )''')
+
+    # ★ НОВАЯ ТАБЛИЦА: ИСТОРИЯ ТРАНЗАКЦИЙ ★
+    c.execute('''CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER,
+        type TEXT,
+        amount REAL,
+        balance_after REAL,
+        description TEXT,
         timestamp REAL
     )''')
     
@@ -74,11 +96,20 @@ def login_user(username, password):
 def get_user_data(user_id):
     conn = sqlite3.connect('game.db')
     c = conn.cursor()
-    c.execute("SELECT balance, total_spent, total_won, cases_opened, display_name, last_seen, total_upgrades, total_contracts FROM users WHERE id = ?", (user_id,))
+    c.execute('''SELECT balance, total_spent, total_won, cases_opened, display_name, last_seen, 
+                 total_upgrades, total_contracts,
+                 spent_cases, won_cases, spent_upgrades, won_upgrades, spent_contracts, won_contracts 
+                 FROM users WHERE id = ?''', (user_id,))
     data = c.fetchone()
     conn.close()
     if data:
-        return {"balance": data[0], "spent": data[1], "won": data[2], "opened": data[3], "display_name": data[4], "last_seen": data[5], "upgrades": data[6], "contracts": data[7]}
+        return {
+            "balance": data[0], "spent": data[1], "won": data[2], "opened": data[3], 
+            "display_name": data[4], "last_seen": data[5], "upgrades": data[6], "contracts": data[7],
+            "spent_cases": data[8], "won_cases": data[9], 
+            "spent_upgrades": data[10], "won_upgrades": data[11],
+            "spent_contracts": data[12], "won_contracts": data[13]
+        }
     return None
 
 def update_balance(user_id, amount):
@@ -88,11 +119,25 @@ def update_balance(user_id, amount):
     conn.commit()
     conn.close()
 
-def update_stats(user_id, spent_add=0, won_add=0, opened_add=0, upgrade_add=0, contract_add=0):
+def update_stats(user_id, spent=0, won=0, cases=0, upgrades=0, contracts=0, 
+                  spent_cases=0, won_cases=0, spent_upgrades=0, won_upgrades=0, spent_contracts=0, won_contracts=0):
     conn = sqlite3.connect('game.db')
     c = conn.cursor()
-    c.execute("UPDATE users SET total_spent = total_spent + ?, total_won = total_won + ?, cases_opened = cases_opened + ?, total_upgrades = total_upgrades + ?, total_contracts = total_contracts + ? WHERE id = ?", 
-              (spent_add, won_add, opened_add, upgrade_add, contract_add, user_id))
+    c.execute('''UPDATE users SET 
+        total_spent = total_spent + ?, 
+        total_won = total_won + ?, 
+        cases_opened = cases_opened + ?, 
+        total_upgrades = total_upgrades + ?, 
+        total_contracts = total_contracts + ?,
+        spent_cases = spent_cases + ?, 
+        won_cases = won_cases + ?,
+        spent_upgrades = spent_upgrades + ?, 
+        won_upgrades = won_upgrades + ?,
+        spent_contracts = spent_contracts + ?, 
+        won_contracts = won_contracts + ?
+        WHERE id = ?''', 
+        (spent, won, cases, upgrades, contracts, 
+         spent_cases, won_cases, spent_upgrades, won_upgrades, spent_contracts, won_contracts, user_id))
     conn.commit()
     conn.close()
 
@@ -169,3 +214,21 @@ def get_online_users():
     users = [row[0] for row in c.fetchall()]
     conn.close()
     return users
+
+# ★ НОВАЯ ФУНКЦИЯ: ДОБАВЛЕНИЕ ЗАПИСИ В ИСТОРИЮ ★
+def add_transaction(user_id, type, amount, balance_after, description=""):
+    conn = sqlite3.connect('game.db')
+    c = conn.cursor()
+    c.execute("INSERT INTO transactions (user_id, type, amount, balance_after, description, timestamp) VALUES (?, ?, ?, ?, ?, ?)", 
+              (user_id, type, amount, balance_after, description, time.time()))
+    conn.commit()
+    conn.close()
+
+# ★ НОВАЯ ФУНКЦИЯ: ПОЛУЧЕНИЕ ИСТОРИИ ★
+def get_transactions(user_id, limit=20):
+    conn = sqlite3.connect('game.db')
+    c = conn.cursor()
+    c.execute("SELECT type, amount, balance_after, description, timestamp FROM transactions WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?", (user_id, limit))
+    rows = c.fetchall()
+    conn.close()
+    return [{"type": row[0], "amount": row[1], "balance_after": row[2], "description": row[3], "time": row[4]} for row in rows]
