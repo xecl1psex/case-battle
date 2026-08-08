@@ -28,6 +28,16 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_fallback_key_for_local_dev')
 db_lock = threading.Lock()
 
+# ★ ФИЛЬТР ФОРМАТИРОВАНИЯ ЧИСЕЛ (с пробелами между тысяч) ★
+def format_thousands(value):
+    try:
+        return f"{int(value):,}".replace(',', ' ')
+    except (ValueError, TypeError):
+        return str(value)
+
+# Регистрируем фильтр в Jinja2
+app.jinja_env.filters['thousands'] = format_thousands
+
 # ★ ЗАПРЕТ КЕШИРОВАНИЯ ДЛЯ БРАУЗЕРА ★
 @app.after_request
 def add_no_cache_headers(response):
@@ -154,7 +164,6 @@ for p in range(10000, 50000, 100): prices.append(p)
 for p in range(50000, 200000, 250): prices.append(p)
 for p in range(200000, 500000, 500): prices.append(p)
 for p in range(500000, 1000000, 1000): prices.append(p)
-# ★ Расширение до 10 000 000 с шагом 5000 ★
 for p in range(1000000, 10000001, 5000): prices.append(p)
 
 rarity_price_ranges = {
@@ -166,7 +175,6 @@ rarity_price_ranges = {
     "mythic": [p for p in prices if p >= 25000]
 }
 
-# ★ НОВАЯ СИСТЕМА ГЕНЕРАЦИИ НАЗВАНИЙ (Более 1200 уникальных комбинаций) ★
 ADJECTIVES = [
     "Багровый", "Лазурный", "Изумрудный", "Золотой", "Серебряный", "Алмазный", "Рубиновый", "Сапфировый",
     "Янтарный", "Топазовый", "Аметистовый", "Жемчужный", "Бронзовый", "Платиновый", "Титановый", "Стальной",
@@ -196,7 +204,6 @@ for t in WEAPON_TYPES:
         count = 12 if r in ["common", "uncommon"] else 15
         for _ in range(count):
             price = random.choice(available)
-            # ★ Случайная комбинация прилагательного и существительного ★
             adj = random.choice(ADJECTIVES)
             noun = random.choice(NOUNS)
             name = f"{t} «{adj} {noun}»"
@@ -214,7 +221,6 @@ ALL_ITEMS.sort(key=lambda x: x['price'])
 
 # ===== КЕЙСЫ =====
 def generate_case_drop(case_price, items_count=50):
-    # Балансировка множителей
     if case_price <= 20:
         min_multiplier = 0.05
         abs_min_price = 0.0
@@ -261,7 +267,6 @@ def generate_case_drop(case_price, items_count=50):
     min_price = max(case_price * min_multiplier, abs_min_price)
     max_price = case_price * max_multiplier
     
-    # Расширение джекпотов до 10 000 000
     if case_price <= 20:
         jackpot_range = (100, 1500)
     elif case_price <= 50:
@@ -309,7 +314,6 @@ def generate_case_drop(case_price, items_count=50):
     selected = jackpots + normal_pool
     random.shuffle(selected)
     
-    # ★ Сбалансированные шансы (степень 0.45) ★
     weights = []
     for item in selected:
         weight = 1000 / ((item['price'] + 1) ** 0.45)
@@ -360,8 +364,6 @@ CASES = {
     "shadow": {"name": "Теневой охотник", "price": 10000, "image": get_icon("Снайперская", "#b03aff"), "drop_list": generate_case_drop(10000, 50)},
     "eternal": {"name": "Вечность", "price": 15000, "image": get_icon("Штурмовая винтовка", "#ff8c00"), "drop_list": generate_case_drop(15000, 50)},
     "abyss": {"name": "Бездна", "price": 25000, "image": get_icon("Нож", "#ff0000"), "drop_list": generate_case_drop(25000, 50)},
-    
-    # ★ 4 НОВЫХ ЭЛИТНЫХ КЕЙСА ДО 1 МИЛЛИОНА ★
     "dragon": {"name": "Драконья сокровищница", "price": 50000, "image": get_icon("Дробовик", "#ff8c00"), "drop_list": generate_case_drop(50000, 50)},
     "immortal": {"name": "Бессмертный арсенал", "price": 100000, "image": get_icon("Винтовка", "#b03aff"), "drop_list": generate_case_drop(100000, 50)},
     "godlike": {"name": "Божественный предел", "price": 500000, "image": get_icon("Нож", "#ff0000"), "drop_list": generate_case_drop(500000, 50)},
@@ -493,7 +495,6 @@ def open_case():
         if user_data['balance'] < case['price']:
             return jsonify({"success": False, "message": "Недостаточно средств"})
         
-        # Списание и запись в историю
         new_balance = user_data['balance'] - case['price']
         database.update_balance(user_id, -case['price'])
         database.add_transaction(user_id, 'case_spend', -case['price'], new_balance, f"Открытие кейса: {case['name']}")
@@ -509,7 +510,6 @@ def open_case():
         
         new_item_id = database.add_item(user_id, won_item['name'], won_item['price'], won_item['rarity'], won_item.get('image', ''))
         
-        # Обновление детальной статистики
         database.update_stats(user_id, spent=case['price'], won=won_item['price'], cases=1, spent_cases=case['price'], won_cases=won_item['price'])
         database.add_transaction(user_id, 'case_win', won_item['price'], new_balance + won_item['price'], f"Выбит скин: {won_item['name']}")
         
@@ -574,7 +574,6 @@ def upgrade_item():
             database.add_item(user_id, f"{target_item['name']} (Апгрейд)", target_price, target_item['rarity'], target_item.get('image', ''))
             message = f"✅ Успех! Ты получил {target_item['name']}!"
             
-            # Запись в историю и статистику
             database.add_transaction(user_id, 'upgrade_win', target_price, balance_after, f"Апгрейд: {target_item['name']}")
             database.update_stats(user_id, spent=current_price, won=target_price, upgrades=1, spent_upgrades=current_price, won_upgrades=target_price)
             database.add_drop_feed(user_id, user_data['display_name'], target_item['name'], target_price, target_item.get('image', ''), "Апгрейд")
@@ -719,7 +718,6 @@ def contract():
         database.add_transaction(user_id, 'contract', closest_item['price'], balance_after, f"Контракт: {closest_item['name']}")
         database.update_stats(user_id, spent=total_value, won=closest_item['price'], contracts=1, spent_contracts=total_value, won_contracts=closest_item['price'])
         
-        # Запись в ленту дропа для контрактов
         database.add_drop_feed(user_id, user_data['display_name'], closest_item['name'], closest_item['price'], closest_item.get('image', ''), "Контракт")
     
     return jsonify({
