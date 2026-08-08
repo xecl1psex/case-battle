@@ -36,7 +36,6 @@ def add_no_cache_headers(response):
     response.headers['Expires'] = '0'
     return response
 
-# ★ ИНИЦИАЛИЗАЦИЯ БД ПРИ ЗАПУСКЕ ★
 database.init_db()
 
 @app.before_request
@@ -202,46 +201,47 @@ ALL_ITEMS.sort(key=lambda x: x['price'])
 
 # ===== КЕЙСЫ =====
 def generate_case_drop(case_price, items_count=50):
+    # Балансировка множителей (делаем более щадящей для игрока)
     if case_price <= 20:
         min_multiplier = 0.05
         abs_min_price = 0.0
-        max_multiplier = 3
+        max_multiplier = 5
         cheap_threshold = 0.8
-        trash_ratio = 0.80
+        trash_ratio = 0.70
     elif case_price <= 50:
         min_multiplier = 0.05
         abs_min_price = 2.5
-        max_multiplier = 4
+        max_multiplier = 6
         cheap_threshold = 0.7
-        trash_ratio = 0.70
+        trash_ratio = 0.60
     elif case_price <= 100:
         min_multiplier = 0.10
         abs_min_price = 10.0
-        max_multiplier = 6
+        max_multiplier = 8
         cheap_threshold = 0.6
-        trash_ratio = 0.55
+        trash_ratio = 0.45
     elif case_price <= 500:
         min_multiplier = 0.15
         abs_min_price = 0.0
-        max_multiplier = 10
+        max_multiplier = 12
         cheap_threshold = 0.6
-        trash_ratio = 0.35
+        trash_ratio = 0.30
     elif case_price <= 2000:
         min_multiplier = 0.30
         abs_min_price = 0.0
-        max_multiplier = 14
+        max_multiplier = 16
         cheap_threshold = 0.5
         trash_ratio = 0.15
     elif case_price <= 10000:
         min_multiplier = 0.30
         abs_min_price = 0.0
-        max_multiplier = 18
+        max_multiplier = 20
         cheap_threshold = 0.4
         trash_ratio = 0.10
     else:
         min_multiplier = 0.25
         abs_min_price = 0.0
-        max_multiplier = 22
+        max_multiplier = 25
         cheap_threshold = 0.3
         trash_ratio = 0.08
     
@@ -293,10 +293,12 @@ def generate_case_drop(case_price, items_count=50):
     selected = jackpots + normal_pool
     random.shuffle(selected)
     
+    # ★ ИЗМЕНЕНИЕ БАЛАНСА ШАНСОВ (сделано более пологим) ★
     weights = []
     for item in selected:
-        weight = 1000 / ((item['price'] + 1) ** 0.8)
-        weight = weight * random.uniform(0.7, 1.3)
+        # Меньшая степень (0.35) дает более ровные шансы для всех предметов, позволяя чаще окупаться
+        weight = 1000 / ((item['price'] + 1) ** 0.35) 
+        weight = weight * random.uniform(0.8, 1.2)
         weights.append(weight)
     
     total_weight = sum(weights)
@@ -470,8 +472,10 @@ def open_case():
         if user_data['balance'] < case['price']:
             return jsonify({"success": False, "message": "Недостаточно средств"})
         
+        # Списание и запись в историю
+        new_balance = user_data['balance'] - case['price']
         database.update_balance(user_id, -case['price'])
-        database.update_stats(user_id, spent_add=case['price'], opened_add=1)
+        database.add_transaction(user_id, 'case_spend', -case['price'], new_balance, f"Открытие кейса: {case['name']}")
         
         roll = random.uniform(0, 100)
         cum = 0
@@ -483,7 +487,10 @@ def open_case():
                 break
         
         new_item_id = database.add_item(user_id, won_item['name'], won_item['price'], won_item['rarity'], won_item.get('image', ''))
-        database.update_stats(user_id, won_add=won_item['price'])
+        
+        # Обновление детальной статистики
+        database.update_stats(user_id, spent=case['price'], won=won_item['price'], cases=1, spent_cases=case['price'], won_cases=won_item['price'])
+        database.add_transaction(user_id, 'case_win', won_item['price'], new_balance + won_item['price'], f"Выбит скин: {won_item['name']}")
         
         database.add_drop_feed(user_id, user_data['display_name'], won_item['name'], won_item['price'], won_item.get('image', ''), case['name'])
     
@@ -525,7 +532,6 @@ def upgrade_item():
     if target_price <= current_price:
         return jsonify({"success": False, "message": "Целевой скин должен быть дороже суммы выбранных"})
     
-    # ================== ОКРУГЛЕНИЕ ДО СОТЫХ ==================
     raw_chance = (current_price / target_price) * 100
     chance = round(raw_chance, 2)
     
@@ -533,22 +539,32 @@ def upgrade_item():
         return jsonify({"success": False, "message": "Шанс 0.00%! Добавьте больше скинов или выберите более дешевую цель."})
         
     chance = min(chance, 95)
-    # =========================================================
     
     final_roll = random.uniform(0, 100)
     success = final_roll <= chance
     
-    if success:
-        for item in source_items:
-            database.remove_item(user_id, item['id'])
-        database.add_item(user_id, f"{target_item['name']} (Апгрейд)", target_price, target_item['rarity'], target_item.get('image', ''))
-        message = f"✅ Успех! Ты получил {target_item['name']}!"
-        database.update_stats(user_id, spent_add=current_price, won_add=target_price, upgrade_add=1)
-    else:
-        for item in source_items:
-            database.remove_item(user_id, item['id'])
-        message = f"💥 Апгрейд провалился! Все выбранные скины сгорели."
-        database.update_stats(user_id, spent_add=current_price, won_add=0, upgrade_add=1)
+    with db_lock:
+        user_data = database.get_user_data(user_id)
+        balance_after = user_data['balance']
+        
+        if success:
+            for item in source_items:
+                database.remove_item(user_id, item['id'])
+            database.add_item(user_id, f"{target_item['name']} (Апгрейд)", target_price, target_item['rarity'], target_item.get('image', ''))
+            message = f"✅ Успех! Ты получил {target_item['name']}!"
+            
+            # Запись в историю и статистику
+            database.add_transaction(user_id, 'upgrade_win', target_price, balance_after, f"Апгрейд: {target_item['name']}")
+            database.update_stats(user_id, spent=current_price, won=target_price, upgrades=1, spent_upgrades=current_price, won_upgrades=target_price)
+            database.add_drop_feed(user_id, user_data['display_name'], target_item['name'], target_price, target_item.get('image', ''), "Апгрейд")
+            
+        else:
+            for item in source_items:
+                database.remove_item(user_id, item['id'])
+            message = f"💥 Апгрейд провалился! Все выбранные скины сгорели."
+            
+            database.add_transaction(user_id, 'upgrade_fail', -current_price, balance_after, f"Апгрейд провален")
+            database.update_stats(user_id, spent=current_price, won=0, upgrades=1, spent_upgrades=current_price, won_upgrades=0)
     
     return jsonify({
         "success": True,
@@ -567,7 +583,12 @@ def sell_item():
         return jsonify({"success": False, "message": "Не авторизован"})
     user_id = session['user_id']
     item_id = request.json.get('item_id')
-    price = database.sell_item(user_id, item_id)
+    
+    with db_lock:
+        user_data = database.get_user_data(user_id)
+        price = database.sell_item(user_id, item_id)
+        database.add_transaction(user_id, 'sell', price, user_data['balance'] + price, f"Продажа предмета")
+    
     return jsonify({
         "success": True,
         "price": price,
@@ -602,7 +623,11 @@ def deposit():
     if amount <= 0:
         return jsonify({"success": False, "message": "Сумма должна быть больше 0"})
     
-    database.update_balance(user_id, amount)
+    with db_lock:
+        user_data = database.get_user_data(user_id)
+        database.update_balance(user_id, amount)
+        database.add_transaction(user_id, 'deposit', amount, user_data['balance'] + amount, "Пополнение баланса")
+    
     return jsonify({
         "success": True,
         "balance": database.get_user_data(user_id)['balance']
@@ -656,18 +681,25 @@ def contract():
     
     final_value = max(10, round(final_value, 0))
     
-    for item_id in item_ids:
-        database.remove_item(user_id, item_id)
-    
-    closest_item = min(ALL_ITEMS, key=lambda x: abs(x['price'] - final_value))
-    
-    database.add_item(user_id, closest_item['name'], closest_item['price'], closest_item['rarity'], closest_item.get('image', ''))
-    
-    message = f"🎉 Ты получил {closest_item['name']} ({closest_item['price']} монет)!"
-    if closest_item['price'] < total_value:
-        message = f"😔 Ты получил {closest_item['name']} ({closest_item['price']} монет) (не окупилось)"
-    
-    database.update_stats(user_id, spent_add=total_value, won_add=closest_item['price'], contract_add=1)
+    with db_lock:
+        user_data = database.get_user_data(user_id)
+        balance_after = user_data['balance']
+        
+        for item_id in item_ids:
+            database.remove_item(user_id, item_id)
+        
+        closest_item = min(ALL_ITEMS, key=lambda x: abs(x['price'] - final_value))
+        database.add_item(user_id, closest_item['name'], closest_item['price'], closest_item['rarity'], closest_item.get('image', ''))
+        
+        message = f"🎉 Ты получил {closest_item['name']} ({closest_item['price']} монет)!"
+        if closest_item['price'] < total_value:
+            message = f"😔 Ты получил {closest_item['name']} ({closest_item['price']} монет) (не окупилось)"
+        
+        database.add_transaction(user_id, 'contract', closest_item['price'], balance_after, f"Контракт: {closest_item['name']}")
+        database.update_stats(user_id, spent=total_value, won=closest_item['price'], contracts=1, spent_contracts=total_value, won_contracts=closest_item['price'])
+        
+        # Запись в ленту дропа для контрактов
+        database.add_drop_feed(user_id, user_data['display_name'], closest_item['name'], closest_item['price'], closest_item.get('image', ''), "Контракт")
     
     return jsonify({
         "success": True,
@@ -679,39 +711,16 @@ def contract():
         "inventory": database.get_inventory(user_id)
     })
 
-# ===== API ДЛЯ СБРОСА АККАУНТА =====
-@app.route('/api/reset_account', methods=['POST'])
-def reset_account():
+# ---- API (ИСТОРИЯ ТРАНЗАКЦИЙ) ----
+@app.route('/api/transactions', methods=['GET'])
+def get_transactions():
     if 'user_id' not in session:
         return jsonify({"success": False, "message": "Не авторизован"})
-    
     user_id = session['user_id']
-    
-    # 1. Получаем инвентарь и удаляем его
-    inventory = database.get_inventory(user_id)
-    for item in inventory:
-        database.remove_item(user_id, item['id'])
-    
-    # 2. Сбрасываем баланс до 1000
-    user_data = database.get_user_data(user_id)
-    current_balance = user_data['balance']
-    database.update_balance(user_id, -current_balance) # Обнуляем текущий баланс
-    database.update_balance(user_id, 1000) # Выдаем стартовые 1000
-    
-    # 3. Сбрасываем всю статистику
-    conn = sqlite3.connect('game.db')
-    c = conn.cursor()
-    c.execute("UPDATE users SET total_spent = 0, total_won = 0, cases_opened = 0, total_upgrades = 0, total_contracts = 0 WHERE id = ?", (user_id,))
-    conn.commit()
-    conn.close()
-    
-    return jsonify({
-        "success": True,
-        "message": "Аккаунт успешно сброшен. Выдано 1000 монет!",
-        "balance": 1000
-    })
+    history = database.get_transactions(user_id, limit=30)
+    return jsonify({"success": True, "transactions": history})
 
-# ---- API (ОБНОВЛЕНИЕ ЛЕНТЫ ДРОПА В РЕАЛЬНОМ ВРЕМЕНИ) ----
+# ---- API (ОБНОВЛЕНИЕ ЛЕНТЫ ДРОПА) ----
 @app.route('/api/drop_feed_json', methods=['GET'])
 def drop_feed_json():
     feed = database.get_drop_feed(15)
