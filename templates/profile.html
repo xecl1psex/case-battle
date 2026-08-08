@@ -11,75 +11,45 @@
     <div id="tab-settings" onclick="switchTab('settings')" style="padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; color: #8899aa; font-weight: 600; transition: 0.3s;">
         ⚙️ Настройки
     </div>
+    <!-- ★ НОВАЯ ВКЛАДКА: ИСТОРИЯ ★ -->
+    <div id="tab-history" onclick="switchTab('history')" style="padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; color: #8899aa; font-weight: 600; transition: 0.3s;">
+        📜 История
+    </div>
 </div>
 
 <!-- Блок СТАТИСТИКА -->
 <div id="content-stats" style="display: block;">
     <div class="profile-stats">
-        <div class="stat-card">
-            <div class="number">{{ stats.opened }}</div>
-            <div class="label">Кейсов открыто</div>
-        </div>
-        <div class="stat-card">
-            <div class="number">{{ stats.spent }}</div>
-            <div class="label">Потрачено монет</div>
-        </div>
-        <div class="stat-card">
-            <div class="number">{{ stats.won }}</div>
-            <div class="label">Выиграно монет</div>
-        </div>
-        <div class="stat-card">
-            <div class="number">{{ "%.2f"|format((stats.won / stats.spent * 100) if stats.spent > 0 else 0) }}%</div>
-            <div class="label">ROI (возврат)</div>
-        </div>
+        <div class="stat-card"><div class="number">{{ stats.opened }}</div><div class="label">Кейсов открыто</div></div>
+        <div class="stat-card"><div class="number">{{ stats.upgrades|default(0) }}</div><div class="label">Апгрейдов</div></div>
+        <div class="stat-card"><div class="number">{{ stats.contracts|default(0) }}</div><div class="label">Контрактов</div></div>
     </div>
 
-    <!-- СТАТИСТИКА ИНВЕНТАРЯ -->
-    <div class="profile-stats" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
-        <div class="stat-card" style="border-color: rgba(78, 154, 6, 0.4);">
-            <div class="number" style="color: #4e9a06;">{{ inventory|length }}</div>
-            <div class="label">Всего предметов</div>
+    <!-- ★ ДЕТАЛЬНАЯ СТАТИСТИКА ЗАТРАТ И ВЫИГРЫШЕЙ ★ -->
+    <div class="profile-stats" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+        <div class="stat-card" style="border-color: rgba(58, 122, 255, 0.4);">
+            <div class="number" style="color: #3a7aff;">{{ stats.spent_cases|default(0) }}</div>
+            <div class="label">💰 Потрачено в Кейсах</div>
         </div>
-        <div class="stat-card" style="border-color: rgba(255, 215, 0, 0.4);">
-            <div class="number" style="color: #ffd700;">
-                {% set total_val = namespace(sum=0) %}
-                {% for item in inventory %}
-                    {% set total_val.sum = total_val.sum + item.price %}
-                {% endfor %}
-                {{ total_val.sum }}
-            </div>
-            <div class="label">Общая стоимость</div>
+        <div class="stat-card" style="border-color: rgba(58, 122, 255, 0.4);">
+            <div class="number" style="color: #3a7aff;">{{ stats.won_cases|default(0) }}</div>
+            <div class="label">🏆 Выиграно в Кейсах</div>
         </div>
         <div class="stat-card" style="border-color: rgba(233, 69, 96, 0.4);">
-            <div class="number" style="color: #e94560;">
-                {% set max_item = namespace(price=0, name="—") %}
-                {% for item in inventory %}
-                    {% if item.price > max_item.price %}
-                        {% set max_item.price = item.price %}
-                        {% set max_item.name = item.name %}
-                    {% endif %}
-                {% endfor %}
-                {{ max_item.price }}
-            </div>
-            <div class="label">Самый дорогой</div>
+            <div class="number" style="color: #e94560;">{{ stats.spent_upgrades|default(0) }}</div>
+            <div class="label">🔥 Потрачено в Апгрейдах</div>
         </div>
-        <div class="stat-card" style="border-color: rgba(179, 58, 255, 0.4);">
-            <div class="number" style="color: #b03aff;">
-                {% set total_val = namespace(sum=0) %}
-                {% for item in inventory %}
-                    {% set total_val.sum = total_val.sum + item.price %}
-                {% endfor %}
-                {{ "%.2f"|format((total_val.sum / inventory|length) if inventory|length > 0 else 0) }}
-            </div>
-            <div class="label">Средняя цена</div>
+        <div class="stat-card" style="border-color: rgba(233, 69, 96, 0.4);">
+            <div class="number" style="color: #e94560;">{{ stats.won_upgrades|default(0) }}</div>
+            <div class="label">🏆 Выиграно в Апгрейдах</div>
         </div>
         <div class="stat-card" style="border-color: rgba(243, 156, 18, 0.4);">
-            <div class="number" style="color: #f39c12;">{{ stats.upgrades|default(0) }}</div>
-            <div class="label">Апгрейдов</div>
+            <div class="number" style="color: #f39c12;">{{ stats.spent_contracts|default(0) }}</div>
+            <div class="label">🔄 Потрачено в Контрактах</div>
         </div>
-        <div class="stat-card" style="border-color: rgba(78, 154, 6, 0.4);">
-            <div class="number" style="color: #4e9a06;">{{ stats.contracts|default(0) }}</div>
-            <div class="label">Контрактов</div>
+        <div class="stat-card" style="border-color: rgba(243, 156, 18, 0.4);">
+            <div class="number" style="color: #f39c12;">{{ stats.won_contracts|default(0) }}</div>
+            <div class="label">🏆 Выиграно в Контрактах</div>
         </div>
     </div>
 
@@ -98,9 +68,7 @@
                 </div>
             </div>
             {% if inventory %}
-            <button class="btn" style="background: #e94560; font-size: 14px; padding: 8px 20px;" onclick="openSellAllModal()">
-                💰 Продать всё
-            </button>
+            <button class="btn" style="background: #e94560; font-size: 14px; padding: 8px 20px;" onclick="openSellAllModal()">💰 Продать всё</button>
             {% endif %}
         </div>
         
@@ -114,9 +82,7 @@
                 <div class="rarity" style="background: {{ RARITY_COLORS[item.rarity] if item.rarity in RARITY_COLORS else '#4a4a4a' }}; color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 4px; display: inline-block;">
                     {{ RARITY_NAMES[item.rarity] if item.rarity in RARITY_NAMES else item.rarity }}
                 </div>
-                <button class="btn" style="font-size: 12px; padding: 6px 12px; margin-top: 10px;" onclick="sellItem({{ item.id }})">
-                    💰 Продать
-                </button>
+                <button class="btn" style="font-size: 12px; padding: 6px 12px; margin-top: 10px;" onclick="sellItem({{ item.id }})">💰 Продать</button>
             </div>
             {% endfor %}
         </div>
@@ -129,10 +95,8 @@
 <!-- Блок НАСТРОЙКИ -->
 <div id="content-settings" style="display: none;">
     <div class="card" style="background: #1a1a2e; padding: 30px; border-radius: 16px; border: 1px solid #0f3460; max-width: 600px;">
-        
         <h3 style="margin-bottom: 20px;">⚙️ Настройки игры</h3>
         
-        <!-- Настройка Звука -->
         <div class="settings-row">
             <div>
                 <div class="label">🔊 Звуковые эффекты</div>
@@ -144,7 +108,6 @@
             </label>
         </div>
 
-        <!-- Сброс прогресса -->
         <div class="settings-row" style="border-bottom: none; margin-top: 10px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.04);">
             <div>
                 <div class="label" style="color: #e94560;">⚠️ Опасная зона</div>
@@ -152,7 +115,16 @@
             </div>
             <button class="btn btn-danger" style="padding: 6px 12px; font-size: 13px;" onclick="openResetModal()">Сбросить</button>
         </div>
+    </div>
+</div>
 
+<!-- ★ Блок ИСТОРИЯ ★ -->
+<div id="content-history" style="display: none;">
+    <div class="card" style="background: #1a1a2e; padding: 30px; border-radius: 16px; border: 1px solid #0f3460; max-width: 800px;">
+        <h3 style="margin-bottom: 20px;">📜 История операций</h3>
+        <div id="history-list">
+            <div style="text-align: center; padding: 20px; color: #8899aa;">Загрузка истории...</div>
+        </div>
     </div>
 </div>
 
@@ -161,8 +133,7 @@
     <div class="modal-content">
         <h2 style="color: #e94560;">⚠️ Подтверждение</h2>
         <p style="color: #aaa; margin-bottom: 15px; font-size: 14px;">
-            Ты уверен, что хочешь сбросить весь прогресс? <br>
-            <strong>Это действие необратимо!</strong>
+            Ты уверен, что хочешь сбросить весь прогресс? <br><strong>Это действие необратимо!</strong>
         </p>
         <div style="display: flex; gap: 10px; justify-content: center;">
             <button class="btn btn-danger" onclick="executeReset()" style="flex: 1;">✅ Да, сбросить!</button>
@@ -174,17 +145,17 @@
 <script>
 // ===== ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК =====
 function switchTab(tabName) {
-    // Скрываем оба блока
     document.getElementById('content-stats').style.display = 'none';
     document.getElementById('content-settings').style.display = 'none';
+    document.getElementById('content-history').style.display = 'none';
     
-    // Убираем активный стиль с табов
     document.getElementById('tab-stats').style.borderBottomColor = 'transparent';
     document.getElementById('tab-stats').style.color = '#8899aa';
     document.getElementById('tab-settings').style.borderBottomColor = 'transparent';
     document.getElementById('tab-settings').style.color = '#8899aa';
+    document.getElementById('tab-history').style.borderBottomColor = 'transparent';
+    document.getElementById('tab-history').style.color = '#8899aa';
     
-    // Показываем нужный блок и красим таб
     if (tabName === 'stats') {
         document.getElementById('content-stats').style.display = 'block';
         document.getElementById('tab-stats').style.borderBottomColor = '#e94560';
@@ -193,10 +164,13 @@ function switchTab(tabName) {
         document.getElementById('content-settings').style.display = 'block';
         document.getElementById('tab-settings').style.borderBottomColor = '#e94560';
         document.getElementById('tab-settings').style.color = '#fff';
-        
-        // Устанавливаем состояние чекбокса звука при открытии настроек
         const savedSound = localStorage.getItem('casebattle_sound_enabled');
         document.getElementById('soundToggle').checked = savedSound !== 'false'; 
+    } else if (tabName === 'history') {
+        document.getElementById('content-history').style.display = 'block';
+        document.getElementById('tab-history').style.borderBottomColor = '#e94560';
+        document.getElementById('tab-history').style.color = '#fff';
+        loadHistory(); // Загружаем данные при открытии вкладки
     }
 }
 
@@ -207,22 +181,12 @@ function toggleGlobalSound() {
 }
 
 // ===== СБРОС АККАУНТА =====
-function openResetModal() {
-    document.getElementById('resetModal').style.display = 'flex';
-}
-
-function closeResetModal() {
-    document.getElementById('resetModal').style.display = 'none';
-}
+function openResetModal() { document.getElementById('resetModal').style.display = 'flex'; }
+function closeResetModal() { document.getElementById('resetModal').style.display = 'none'; }
 
 async function executeReset() {
     closeResetModal();
-    
-    const response = await fetch('/api/reset_account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-    });
-    
+    const response = await fetch('/api/reset_account', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
     const data = await response.json();
     if (data.success) {
         document.getElementById('balance-display').innerText = data.balance;
@@ -233,26 +197,67 @@ async function executeReset() {
     }
 }
 
+// ===== ИСТОРИЯ ТРАНЗАКЦИЙ =====
+async function loadHistory() {
+    const list = document.getElementById('history-list');
+    list.innerHTML = '<div style="text-align: center; padding: 20px; color: #8899aa;">⏳ Загрузка...</div>';
+    
+    const response = await fetch('/api/transactions');
+    const data = await response.json();
+    
+    if (data.success && data.transactions.length > 0) {
+        let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+        data.transactions.forEach(t => {
+            let icon = '🟡';
+            let color = '#fff';
+            if (t.type === 'deposit') { icon = '🟢'; color = '#4e9a06'; }
+            else if (t.type.includes('spend') || t.type.includes('fail')) { icon = '🔴'; color = '#e94560'; }
+            else if (t.type.includes('win')) { icon = '🟣'; color = '#b03aff'; }
+            else if (t.type === 'sell') { icon = '💰'; color = '#ffd700'; }
+            else if (t.type === 'contract') { icon = '🟠'; color = '#f39c12'; }
+
+            // Перевод типа на русский
+            let typeRu = t.type;
+            if(t.type === 'deposit') typeRu = 'Пополнение';
+            else if(t.type === 'case_spend') typeRu = 'Кейс (трата)';
+            else if(t.type === 'case_win') typeRu = 'Кейс (выигрыш)';
+            else if(t.type === 'upgrade_fail') typeRu = 'Апгрейд (провал)';
+            else if(t.type === 'upgrade_win') typeRu = 'Апгрейд (успех)';
+            else if(t.type === 'contract') typeRu = 'Контракт';
+            else if(t.type === 'sell') typeRu = 'Продажа';
+
+            html += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(12,18,28,0.6); border-radius: 8px; border: 1px solid rgba(255,255,255,0.04);">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 18px;">${icon}</span>
+                        <div>
+                            <div style="font-size: 14px; font-weight: 500;">${typeRu}</div>
+                            <div style="font-size: 12px; color: #8899aa;">${t.description || ''}</div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 15px; font-weight: 600; color: ${color};">
+                            ${t.amount > 0 ? '+' : ''}${t.amount} монет
+                        </div>
+                        <div style="font-size: 11px; color: #8899aa;">Баланс: ${t.balance_after}</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        list.innerHTML = html;
+    } else {
+        list.innerHTML = '<div style="text-align: center; padding: 40px 0; color: #8899aa;">📭 История операций пуста.</div>';
+    }
+}
+
 // ===== ОСТАЛЬНОЙ КОД =====
 async function sellItem(itemId) {
     if (!confirm('Ты уверен, что хочешь продать этот скин?')) return;
-    
-    const response = await fetch('/api/sell_item', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_id: itemId })
-    });
-    
+    const response = await fetch('/api/sell_item', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item_id: itemId }) });
     const data = await response.json();
-    
-    if (data.success) {
-        window.playCoin();
-        alert(`✅ Скин продан за ${data.price} монет!`);
-        document.getElementById('balance-display').innerText = data.balance;
-        location.reload();
-    } else {
-        alert('❌ Ошибка при продаже');
-    }
+    if (data.success) { window.playCoin(); alert(`✅ Скин продан за ${data.price} монет!`); document.getElementById('balance-display').innerText = data.balance; location.reload(); } 
+    else { alert('❌ Ошибка при продаже'); }
 }
 
 function openSellAllModal() {
@@ -260,54 +265,30 @@ function openSellAllModal() {
     {% for item in inventory %}
         {% set total_val.sum = total_val.sum + item.price %}
     {% endfor %}
-    const count = {{ inventory|length }};
-    const totalValue = {{ total_val.sum }};
-    
-    const modal = document.getElementById('depositModal');
-    const content = modal.querySelector('.modal-content');
-    
+    const count = {{ inventory|length }}; const totalValue = {{ total_val.sum }};
+    const modal = document.getElementById('depositModal'); const content = modal.querySelector('.modal-content');
     content.innerHTML = `
         <h2 style="color: #f39c12;">⚠️ Подтверждение</h2>
-        <p style="color: #aaa; font-size: 16px; margin: 10px 0;">
-            Ты уверен, что хочешь продать <strong>ВСЕ ${count}</strong> предметов из инвентаря за <strong style="color: #ffd700;">${totalValue} монет</strong>?
-        </p>
+        <p style="color: #aaa; font-size: 16px; margin: 10px 0;">Ты уверен, что хочешь продать <strong>ВСЕ ${count}</strong> предметов из инвентаря за <strong style="color: #ffd700;">${totalValue} монет</strong>?</p>
         <p style="color: #888; font-size: 13px; margin-bottom: 15px;">Это действие нельзя отменить!</p>
-        <div style="display: flex; gap: 10px; justify-content: center;">
-            <button class="btn btn-gold" onclick="executeSellAll()" style="flex: 1;">✅ Да, продать!</button>
-            <button class="btn" style="background: #555; flex: 1;" onclick="closeDepositModal()">❌ Отмена</button>
-        </div>
+        <div style="display: flex; gap: 10px; justify-content: center;"><button class="btn btn-gold" onclick="executeSellAll()" style="flex: 1;">✅ Да, продать!</button><button class="btn" style="background: #555; flex: 1;" onclick="closeDepositModal()">❌ Отмена</button></div>
     `;
     modal.style.display = 'flex';
 }
 
 async function executeSellAll() {
     document.getElementById('depositModal').style.display = 'none';
-    
-    const response = await fetch('/api/sell_all', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-    });
-    
+    const response = await fetch('/api/sell_all', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
     const data = await response.json();
-    
-    if (data.success) {
-        window.playCoin();
-        alert(`✅ Все предметы проданы! Ты получил ${data.total} монет!`);
-        document.getElementById('balance-display').innerText = data.balance;
-        location.reload();
-    } else {
-        alert('❌ Ошибка при продаже всех предметов');
-    }
+    if (data.success) { window.playCoin(); alert(`✅ Все предметы проданы! Ты получил ${data.total} монет!`); document.getElementById('balance-display').innerText = data.balance; location.reload(); } 
+    else { alert('❌ Ошибка при продаже всех предметов'); }
 }
 </script>
 
 <style>
-.card {
-    background: rgba(20, 35, 50, 0.4);
-    border-radius: 16px;
-    padding: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    margin-bottom: 20px;
-}
+.card { background: rgba(20, 35, 50, 0.4); border-radius: 16px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.04); margin-bottom: 20px; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: rgba(12,18,28,0.6); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #e94560; border-radius: 4px; }
 </style>
 {% endblock %}
