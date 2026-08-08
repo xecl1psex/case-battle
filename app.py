@@ -201,7 +201,7 @@ ALL_ITEMS.sort(key=lambda x: x['price'])
 
 # ===== КЕЙСЫ =====
 def generate_case_drop(case_price, items_count=50):
-    # Балансировка множителей (делаем более щадящей для игрока)
+    # Балансировка множителей
     if case_price <= 20:
         min_multiplier = 0.05
         abs_min_price = 0.0
@@ -293,12 +293,13 @@ def generate_case_drop(case_price, items_count=50):
     selected = jackpots + normal_pool
     random.shuffle(selected)
     
-    # ★ ИЗМЕНЕНИЕ БАЛАНСА ШАНСОВ (сделано более пологим) ★
+    # ★ ИЗМЕНЕНИЕ БАЛАНСА ШАНСОВ (Снижена окупаемость на 15-20%) ★
     weights = []
     for item in selected:
-        # Меньшая степень (0.35) дает более ровные шансы для всех предметов, позволяя чаще окупаться
-        weight = 1000 / ((item['price'] + 1) ** 0.35) 
-        weight = weight * random.uniform(0.8, 1.2)
+        # Степень 0.45 делает более жесткое распределение в пользу дешевых предметов
+        weight = 1000 / ((item['price'] + 1) ** 0.45)
+        # Убрали лишний разброс, чтобы шансы были стабильнее
+        weight = weight * random.uniform(0.9, 1.1)
         weights.append(weight)
     
     total_weight = sum(weights)
