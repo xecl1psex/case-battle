@@ -141,7 +141,7 @@ RARITY_COLORS = {
     "epic": "#b03aff", "legendary": "#ff8c00", "mythic": "#ff0000"
 }
 
-# ===== РАСШИРЕННЫЙ ПУЛ ЦЕН =====
+# ===== РАСШИРЕННЫЙ ПУЛ ЦЕН (ДО 10 МИЛЛИОНОВ) =====
 ALL_ITEMS = []
 WEAPON_TYPES = ["Пистолет", "Пистолет-пулемёт", "Дробовик", "Винтовка", "Штурмовая винтовка", "Снайперская", "Нож", "Перчатки"]
 
@@ -153,7 +153,9 @@ for p in range(1000, 10000, 50): prices.append(p)
 for p in range(10000, 50000, 100): prices.append(p)
 for p in range(50000, 200000, 250): prices.append(p)
 for p in range(200000, 500000, 500): prices.append(p)
-for p in range(500000, 1000001, 1000): prices.append(p)
+for p in range(500000, 1000000, 1000): prices.append(p)
+# ★ Расширение до 10 000 000 с шагом 5000 ★
+for p in range(1000000, 10000001, 5000): prices.append(p)
 
 rarity_price_ranges = {
     "common": [p for p in prices if p <= 80],
@@ -164,13 +166,21 @@ rarity_price_ranges = {
     "mythic": [p for p in prices if p >= 25000]
 }
 
-SUFFIX_NAMES = [
-    "Стандарт", "Вспышка", "Тень", "Шторм", "Гром", "Пламя", "Лёд", "Космос", "Фантом", "Предел", 
-    "Титан", "Искра", "Молния", "Зверь", "Призрак", "Буря", "Сталь", "Коготь", "Клык", 
-    "Огонь", "Вода", "Земля", "Воздух", "Ночь", "День", "Вихрь", "Скала", "Гранит", "Смерч", 
-    "Багровый", "Лазурный", "Изумрудный", "Золотой", "Серебряный", "Алмаз", "Рубин", "Сапфир", 
-    "Янтарь", "Топаз", "Аметист", "Бриллиант", "Ярость", "Гнев", "Бездна", "Хаос", "Порядок", 
-    "Свет", "Тьма", "Каратель", "Демон", "Ангел", "Торнадо", "Ураган"
+# ★ НОВАЯ СИСТЕМА ГЕНЕРАЦИИ НАЗВАНИЙ (Более 1200 уникальных комбинаций) ★
+ADJECTIVES = [
+    "Багровый", "Лазурный", "Изумрудный", "Золотой", "Серебряный", "Алмазный", "Рубиновый", "Сапфировый",
+    "Янтарный", "Топазовый", "Аметистовый", "Жемчужный", "Бронзовый", "Платиновый", "Титановый", "Стальной",
+    "Гранитный", "Обсидиановый", "Неоновый", "Плазменный", "Космический", "Лунный", "Солнечный", "Звёздный",
+    "Теневой", "Молниевой", "Огненный", "Ледяной", "Ветреный", "Земляной", "Водяной", "Древний", "Могучий",
+    "Священный", "Проклятый", "Дикий", "Безжалостный", "Смертельный", "Бесконечный", "Вечный", "Глубинный",
+    "Раскалённый", "Леденящий", "Бушующий", "Неукротимый", "Призрачный", "Скрытый", "Благородный", "Королевский"
+]
+NOUNS = [
+    "Пламя", "Лёд", "Гром", "Молния", "Шторм", "Вихрь", "Предел", "Бездна", "Хаос", "Порядок",
+    "Свет", "Тьма", "Каратель", "Демон", "Ангел", "Торнадо", "Ураган", "Скала", "Гранит", "Смерч",
+    "Клык", "Коготь", "Зверь", "Призрак", "Фантом", "Космос", "Искра", "Огонь", "Вода", "Земля",
+    "Воздух", "Ночь", "День", "Вихрь", "Скала", "Ярость", "Гнев", "Бездна", "Сокол", "Орёл",
+    "Дракон", "Волк", "Тигр", "Лев", "Феникс", "Гидра", "Цербер", "Титан", "Колосс", "Легенда"
 ]
 
 for t in WEAPON_TYPES:
@@ -186,11 +196,14 @@ for t in WEAPON_TYPES:
         count = 12 if r in ["common", "uncommon"] else 15
         for _ in range(count):
             price = random.choice(available)
-            suffix = random.choice(SUFFIX_NAMES)
+            # ★ Случайная комбинация прилагательного и существительного ★
+            adj = random.choice(ADJECTIVES)
+            noun = random.choice(NOUNS)
+            name = f"{t} «{adj} {noun}»"
             color = RARITY_COLORS[r]
             image = get_icon(t, color)
             ALL_ITEMS.append({
-                "name": f"{t} «{suffix}»",
+                "name": name,
                 "type": t,
                 "price": price,
                 "rarity": r,
@@ -241,13 +254,14 @@ def generate_case_drop(case_price, items_count=50):
     else:
         min_multiplier = 0.25
         abs_min_price = 0.0
-        max_multiplier = 25
+        max_multiplier = 30
         cheap_threshold = 0.3
         trash_ratio = 0.08
     
     min_price = max(case_price * min_multiplier, abs_min_price)
     max_price = case_price * max_multiplier
     
+    # Расширение джекпотов до 10 000 000
     if case_price <= 20:
         jackpot_range = (100, 1500)
     elif case_price <= 50:
@@ -258,8 +272,10 @@ def generate_case_drop(case_price, items_count=50):
         jackpot_range = (5000, 50000)
     elif case_price <= 2000:
         jackpot_range = (50000, 200000)
-    else:
+    elif case_price <= 10000:
         jackpot_range = (100000, 1000000)
+    else:
+        jackpot_range = (500000, 10000000)
     
     jackpot_candidates = [item for item in ALL_ITEMS if jackpot_range[0] <= item['price'] <= jackpot_range[1]]
     random.shuffle(jackpot_candidates)
@@ -293,12 +309,10 @@ def generate_case_drop(case_price, items_count=50):
     selected = jackpots + normal_pool
     random.shuffle(selected)
     
-    # ★ ИЗМЕНЕНИЕ БАЛАНСА ШАНСОВ (Снижена окупаемость на 15-20%) ★
+    # ★ Сбалансированные шансы (степень 0.45) ★
     weights = []
     for item in selected:
-        # Степень 0.45 делает более жесткое распределение в пользу дешевых предметов
         weight = 1000 / ((item['price'] + 1) ** 0.45)
-        # Убрали лишний разброс, чтобы шансы были стабильнее
         weight = weight * random.uniform(0.9, 1.1)
         weights.append(weight)
     
@@ -345,7 +359,13 @@ CASES = {
     "titan": {"name": "Титан", "price": 7500, "image": get_icon("Перчатки", "#ff0000"), "drop_list": generate_case_drop(7500, 50)},
     "shadow": {"name": "Теневой охотник", "price": 10000, "image": get_icon("Снайперская", "#b03aff"), "drop_list": generate_case_drop(10000, 50)},
     "eternal": {"name": "Вечность", "price": 15000, "image": get_icon("Штурмовая винтовка", "#ff8c00"), "drop_list": generate_case_drop(15000, 50)},
-    "abyss": {"name": "Бездна", "price": 25000, "image": get_icon("Нож", "#ff0000"), "drop_list": generate_case_drop(25000, 50)}
+    "abyss": {"name": "Бездна", "price": 25000, "image": get_icon("Нож", "#ff0000"), "drop_list": generate_case_drop(25000, 50)},
+    
+    # ★ 4 НОВЫХ ЭЛИТНЫХ КЕЙСА ДО 1 МИЛЛИОНА ★
+    "dragon": {"name": "Драконья сокровищница", "price": 50000, "image": get_icon("Дробовик", "#ff8c00"), "drop_list": generate_case_drop(50000, 50)},
+    "immortal": {"name": "Бессмертный арсенал", "price": 100000, "image": get_icon("Винтовка", "#b03aff"), "drop_list": generate_case_drop(100000, 50)},
+    "godlike": {"name": "Божественный предел", "price": 500000, "image": get_icon("Нож", "#ff0000"), "drop_list": generate_case_drop(500000, 50)},
+    "omega": {"name": "Омега-кейс", "price": 1000000, "image": get_icon("Штурмовая винтовка", "#ff0000"), "drop_list": generate_case_drop(1000000, 50)}
 }
 
 # ---- СТРАНИЦЫ ----
