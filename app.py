@@ -739,6 +739,41 @@ def get_transactions():
     history = database.get_transactions(user_id, limit=30)
     return jsonify({"success": True, "transactions": history})
 
+# ★ ВОССТАНОВЛЕННЫЙ МАРШРУТ ДЛЯ СБРОСА АККАУНТА ★
+@app.route('/api/reset_account', methods=['POST'])
+def reset_account():
+    if 'user_id' not in session:
+        return jsonify({"success": False, "message": "Не авторизован"})
+    
+    user_id = session['user_id']
+    
+    # 1. Получаем инвентарь и удаляем его
+    inventory = database.get_inventory(user_id)
+    for item in inventory:
+        database.remove_item(user_id, item['id'])
+    
+    # 2. Сбрасываем баланс до 1000
+    user_data = database.get_user_data(user_id)
+    current_balance = user_data['balance']
+    database.update_balance(user_id, -current_balance) # Обнуляем текущий баланс
+    database.update_balance(user_id, 1000) # Выдаем стартовые 1000
+    
+    # 3. Сбрасываем всю статистику (включая новые колонки для режимов)
+    conn = sqlite3.connect('game.db')
+    c = conn.cursor()
+    c.execute('''UPDATE users SET 
+        total_spent = 0, total_won = 0, cases_opened = 0, total_upgrades = 0, total_contracts = 0,
+        spent_cases = 0, won_cases = 0, spent_upgrades = 0, won_upgrades = 0, spent_contracts = 0, won_contracts = 0
+        WHERE id = ?''', (user_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        "success": True,
+        "message": "Аккаунт успешно сброшен. Выдано 1000 монет!",
+        "balance": 1000
+    })
+
 # ---- API (ОБНОВЛЕНИЕ ЛЕНТЫ ДРОПА) ----
 @app.route('/api/drop_feed_json', methods=['GET'])
 def drop_feed_json():
