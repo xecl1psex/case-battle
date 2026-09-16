@@ -7,7 +7,6 @@ import random
 import os
 import threading
 import time
-import sqlite3
 
 def install_and_import(package):
     try:
@@ -759,14 +758,7 @@ def reset_account():
     database.update_balance(user_id, 1000) # Выдаем стартовые 1000
     
     # 3. Сбрасываем всю статистику (включая новые колонки для режимов)
-    conn = sqlite3.connect('game.db')
-    c = conn.cursor()
-    c.execute('''UPDATE users SET 
-        total_spent = 0, total_won = 0, cases_opened = 0, total_upgrades = 0, total_contracts = 0,
-        spent_cases = 0, won_cases = 0, spent_upgrades = 0, won_upgrades = 0, spent_contracts = 0, won_contracts = 0
-        WHERE id = ?''', (user_id,))
-    conn.commit()
-    conn.close()
+    database.reset_user_stats(user_id)
     
     return jsonify({
         "success": True,
